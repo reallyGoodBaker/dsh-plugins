@@ -1431,14 +1431,45 @@ body[data-ds-dark-theme] .mcd-root{
     class McDevBoundary extends React.Component {
       constructor(props) {
         super(props);
-        this.state = { error: undefined };
+        this.state = { error: undefined, componentStack: '', retries: 0 };
+        this.retryTimer = 0;
       }
       static getDerivedStateFromError(error) {
         return { error };
       }
+      componentDidCatch(error, info) {
+        const stack = info !== null && info !== undefined && typeof info.componentStack === 'string' ? info.componentStack : '';
+        try {
+          // Keep the full React stack in the page console for diagnosis.
+          // eslint-disable-next-line no-console
+          console.error('[dsh-mcdev] panel render failed', error, stack);
+        } catch {
+          /* ignore */
+        }
+        // A cold start can render this slot before the page's session/context providers are
+        // installed; retry the mount a few times so a transient hook-order error from that
+        // window does not leave the permanent red banner behind.
+        if (this.state.retries < 3) {
+          this.setState({ componentStack: stack });
+          if (this.retryTimer !== 0) clearTimeout(this.retryTimer);
+          this.retryTimer = setTimeout(() => {
+            this.retryTimer = 0;
+            this.setState((current) => ({ error: undefined, retries: current.retries + 1 }));
+          }, 200 * (this.state.retries + 1));
+          return;
+        }
+        this.setState({ componentStack: stack });
+      }
+      componentWillUnmount() {
+        if (this.retryTimer !== 0) clearTimeout(this.retryTimer);
+      }
       render() {
         if (this.state.error !== undefined) {
           const message = this.state.error && this.state.error.message ? this.state.error.message : String(this.state.error);
+          const details = [
+            message,
+            this.state.componentStack ? '\n' + this.state.componentStack.trim().slice(0, 1200) : '',
+          ].join('');
           return h(
             'div',
             {
@@ -1448,7 +1479,7 @@ body[data-ds-dark-theme] .mcd-root{
                 font: '12px/1.4 ui-monospace, monospace', whiteSpace: 'pre-wrap', pointerEvents: 'auto',
               },
             },
-            'dsh-mcdev: ' + message,
+            'dsh-mcdev: ' + details,
           );
         }
         return this.props.children;
@@ -3968,6 +3999,32 @@ body[data-ds-dark-theme] .mcd-root{
       return h(McDevBoundary, null, h(McDevPanel, { ...props, sessionId: undefined }));
     }
 
+    /**
+     * Stable entry component for the overlay slot. It deliberately holds no session hook of
+     * its own and mounts the session-aware part only after the first animation frame: a cold
+     * start can render the slot before the page's providers are installed, and switching the
+     * hook source (a fallback useSessions that later becomes the real hook) would otherwise
+     * throw React's "rendered more hooks than before" error. Keeping this wrapper's hook
+     * sequence constant also makes the slot element type stable across provider changes.
+     */
+    function McDevOverlayGate(props) {
+      const [ready, setReady] = React.useState(false);
+      React.useEffect(() => {
+        const request = typeof globalThis.requestAnimationFrame === 'function'
+          ? globalThis.requestAnimationFrame
+          : (callback) => setTimeout(callback, 0);
+        const cancel = typeof globalThis.cancelAnimationFrame === 'function'
+          ? globalThis.cancelAnimationFrame
+          : clearTimeout;
+        const id = request(() => setReady(true));
+        return () => cancel(id);
+      }, []);
+      if (!ready) return null;
+      return typeof props.useSessions === 'function'
+        ? h(McDevOverlayWithSessions, props)
+        : h(McDevOverlayNoSessions, props);
+    }
+
     return {
       // Remote namespaces are injected property paths: declare `remote.commands` before
       // reading it. The locale service owns the panel dictionaries; `uiWorkspace`
@@ -4011,10 +4068,7 @@ body[data-ds-dark-theme] .mcd-root{
             ctx.slots.inject(SLOT, () =>
               ctx.slots.register(
                 { name: SLOT, id: ENTRY_ID, order: ENTRY_ORDER, locale: NS },
-                (props) =>
-                  typeof props.useSessions === 'function'
-                    ? h(McDevOverlayWithSessions, { ...props, remote: ctx.remote, t, bootKey, pickDirectory })
-                    : h(McDevOverlayNoSessions, { ...props, remote: ctx.remote, t, bootKey, pickDirectory }),
+                (props) => h(McDevOverlayGate, { ...props, remote: ctx.remote, t, bootKey, pickDirectory }),
               ),
             ),
           'dsh-mcdev: floating console',

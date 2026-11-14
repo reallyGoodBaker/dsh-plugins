@@ -1,4 +1,10 @@
-# dsh-mcdev — 实现契约（v0.10.1：删除旧配置支持与相关提示）
+# dsh-mcdev — 实现契约（v0.10.2：修复冷启动时面板 React #310）
+
+> **v0.10.2 变更（修复）**：
+> - 冷启动 DSH 时 `shell.overlay` 可能在页面 Provider 就绪前渲染；如果此时使用的 `useSessions` 还是回退实现、稍后切换为真实 hook，React 会报 “Rendered more hooks than during the previous render”（minified #310）。此前面板入口直接在注册回调里按 `props.useSessions` 二选一组件类型，放大了这个时序。
+> - 现在入口固定为 `McDevOverlayGate`（自身 hook 序列恒定，无会话 hook），在首个 `requestAnimationFrame` 之后才挂载会话感知的 `McDevOverlayWithSessions`；`props.useSessions` 缺失时挂 `McDevOverlayNoSessions`。
+> - `McDevBoundary` 增加最多 3 次自动重试（200/400/600ms），临时性的启动期 hook 错误不再留下永久红色错误条；`componentDidCatch` 会把完整 React component stack 打到控制台，重试耗尽后错误条也显示 component stack，便于继续定位。
+> - 真机验证：重载插件后面板恢复正常渲染；页面刷新不再出现错误条（冷启动时序需下次重启 DSH 验证）。
 
 > **v0.10.1 变更（清理）**：
 > - **彻底删除 `.mcdev.json` 支持代码**：移除 `lib/native/util.js` 里的 `CONFIG_DEFAULTS` / `configPathOf` / `mergeDeep` / `readJsonFile` / `readConfigWithDefaults` / `writeMergedConfig`，`launcher.js` 不再 re-export；全仓库（代码/测试/README/help/skill）不再出现 `.mcdev.json` 引用。
