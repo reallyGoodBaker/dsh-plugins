@@ -134,6 +134,10 @@
     "gamePathDetected": "Detected:",
     "chooseGameFolder": "Choose game folder",
     "packSourceImported": "imported",
-    "presetActive": "Active"
+    "presetActive": "Active",
+    "backToPresets": "Back to presets",
+    "editPreset": "Edit preset",
+    "setActive": "Use this preset",
+    "gamePathAuto": "Auto-detected game path"
   }
 }

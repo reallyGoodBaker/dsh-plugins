@@ -1,4 +1,10 @@
-# dsh-mcdev — 实现契约（v0.8：M3 设置页 / 移除 .mcdev.json 兼容 / 文件夹导入）
+# dsh-mcdev — 实现契约（v0.8.1：预设卡片列表 / 编辑页两级设置）
+
+> **v0.8.1 变更（UI）**：设置页拆成两级，避免"预设下拉 + 编辑表单"混在一起：
+> - 一级「启动预设」= 预设卡片列表：每张卡片显示序号/名称/世界·访客/exe/当前激活徽标，卡片上「设为当前 / 编辑 / 删除」，底部「＋ 新增预设」；
+> - 二级编辑页：点卡片编辑按钮进入，顶部返回按钮回到列表（`backToPresets`），顶部 ✔ 保存后返回列表；页内为预设信息 / 主机 / 访客三张卡片；
+> - 客户端状态 `launch.page`：`main` → `presets` → `preset`；新增 `openPresetEditor` / `backToPresetList`，`removePreset(id)` 支持按卡片删除，新建预设自动带一个可用皮肤。
+> - 仅 Client 改动，Host 接口不变。
 
 > **v0.8 变更（binding）**：
 > - **设置页重做为 Material 3**：outlined 字段、filled/tonal/outlined 按钮、M3 switch、list item、卡片分区；设置仍通过动作行最右侧齿轮在面板内打开；

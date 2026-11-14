@@ -227,6 +227,16 @@ body[data-ds-dark-theme] .mcd-root{
 .mcd-badge{flex:none;padding:1px 6px;border-radius:var(--mcd-radius-full);background:var(--mcd-surface-container-highest);color:var(--mcd-on-surface-variant);font-size:10px}
 .mcd-skin-list{display:flex;flex-wrap:wrap;gap:4px;max-height:104px;overflow:auto}
 .mcd-settings{overflow:hidden}
+.mcd-preset-card{gap:4px}
+.mcd-preset-text{display:flex;flex-direction:column;gap:2px;flex:1 1 auto;min-width:0}
+.mcd-preset-name{font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcd-preset-exe{opacity:.85}
+.mcd-card-actions{display:flex;justify-content:flex-end;gap:4px;flex:none}
+.mcd-badge-active{background:var(--mcd-primary-container);color:var(--mcd-on-primary-container)}
+.mcd-add-preset{display:flex;align-items:center;justify-content:center;gap:8px;flex:none;height:52px;border:1px dashed var(--mcd-outline);border-radius:var(--mcd-radius-lg);background:transparent;color:var(--mcd-primary);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer}
+.mcd-add-preset svg{width:20px;height:20px;fill:currentColor}
+@media (hover:hover){.mcd-add-preset:not(:disabled):hover{background:var(--mcd-primary-container);color:var(--mcd-on-primary-container)}}
+.mcd-add-preset:disabled{opacity:.38;cursor:not-allowed}
 .mcd-topbar{display:flex;align-items:center;gap:2px;flex:none;padding:2px 0 6px;border-bottom:1px solid var(--mcd-outline-variant)}
 .mcd-topbar-title{flex:1 1 auto;min-width:0;padding-left:6px;font-size:16px;font-weight:500;letter-spacing:.15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mcd-scroll{flex:1 1 auto;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:10px;padding:10px 2px 4px}
@@ -380,6 +390,10 @@ body[data-ds-dark-theme] .mcd-root{
       chooseGameFolder: 'Choose game folder',
       packSourceImported: 'imported',
       presetActive: 'Active',
+      backToPresets: 'Back to presets',
+      editPreset: 'Edit preset',
+      setActive: 'Use this preset',
+      gamePathAuto: 'Auto-detected game path',
       logs: 'Logs',
       exec: 'Run code',
       docs: 'Docs',
@@ -514,6 +528,10 @@ body[data-ds-dark-theme] .mcd-root{
       chooseGameFolder: '选择游戏文件夹',
       packSourceImported: '导入',
       presetActive: '当前激活',
+      backToPresets: '返回预设选择',
+      editPreset: '编辑预设',
+      setActive: '设为当前预设',
+      gamePathAuto: '自动探测的游戏路径',
       logs: '日志',
       exec: '执行代码',
       docs: '文档检索',
@@ -1056,6 +1074,7 @@ body[data-ds-dark-theme] .mcd-root{
       delete: 'M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z',
       add: 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z',
       folder: 'M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z',
+      edit: 'M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z',
       check: 'M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z',
       copy: 'M16 1H4a2 2 0 0 0-2 2v14h2V3h12zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11z',
       search:
@@ -1780,7 +1799,7 @@ body[data-ds-dark-theme] .mcd-root{
       const openSettings = () => {
         const sid = sessionId;
         if (sid === undefined || sid === null) return;
-        commit(sid, (current) => ({ ...current, launch: { ...current.launch, page: 'settings' } }));
+        commit(sid, (current) => ({ ...current, launch: { ...current.launch, page: 'presets' } }));
         if (viewOf(sid).launch.presets.length === 0) void loadPresets(sid);
       };
 
@@ -1789,6 +1808,29 @@ body[data-ds-dark-theme] .mcd-root{
         const sid = sessionId;
         if (sid === undefined || sid === null) return;
         commit(sid, (current) => ({ ...current, launch: { ...current.launch, page: 'main' } }));
+      };
+
+      /** Back from one preset editor to the preset card list (discards unsaved edits). */
+      const backToPresetList = () => {
+        const sid = sessionId;
+        if (sid === undefined || sid === null) return;
+        commit(sid, (current) => ({ ...current, launch: { ...current.launch, page: 'presets', draft: undefined } }));
+      };
+
+      /** Open one preset's editor (entered from the edit button on its card). */
+      const openPresetEditor = async (presetId) => {
+        const sid = sessionId;
+        if (sid === undefined || sid === null) return;
+        let preset = viewOf(sid).launch.presets.find((item) => item.id === presetId);
+        if (preset === undefined) {
+          await loadPresets(sid, { selectId: presetId });
+          preset = viewOf(sid).launch.presets.find((item) => item.id === presetId);
+        }
+        if (preset === undefined) return;
+        commit(sid, (current) => ({
+          ...current,
+          launch: { ...current.launch, page: 'preset', selectedId: presetId, draft: clonePreset(preset) },
+        }));
       };
 
       /** Patch the editable preset draft (deep enough for host/guests). */
@@ -1830,38 +1872,47 @@ body[data-ds-dark-theme] .mcd-root{
         }
       };
 
-      /** Save the current draft. */
+      /** Save the current draft, then return to the preset card list. */
       const saveDraft = async () => {
         const sid = sessionId;
         const draft = viewOf(sid).launch.draft;
         if (draft === undefined) return;
         const ok = await persistPreset(draft, { activate: true });
-        if (ok) flashNote(translate(t, 'presetSaved'));
+        if (ok) {
+          flashNote(translate(t, 'presetSaved'));
+          commit(sid, (current) => ({
+            ...current,
+            launch: { ...current.launch, page: 'presets', draft: undefined },
+          }));
+        }
       };
 
-      /** Add a new preset (starts from the detected defaults) and select it. */
+      /** Add a new preset (starts from the detected defaults) and return to the list. */
       const addPreset = async () => {
         const sid = sessionId;
+        commit(sid, (current) => ({ ...current, launch: { ...current.launch, page: 'presets' } }));
         const launch = viewOf(sid).launch;
         const count = launch.presets.length + 1;
+        const firstSkin = Array.isArray(launch.skins) && launch.skins.length > 0 ? launch.skins[0].path : '';
         const preset = {
           name: translate(t, 'newPresetName') + ' ' + count,
           gameExe: launch.detectedGameExe || '',
-          host: { world: '', behaviorPacks: null, resourcePacks: null, skin: '', slim: false, skinsDir: '' },
+          host: { world: '', behaviorPacks: null, resourcePacks: null, skin: firstSkin, slim: false },
           guests: [],
         };
         const ok = await persistPreset(preset, { activate: true });
         if (ok) flashNote(translate(t, 'presetAdded'));
       };
 
-      /** Delete the selected preset. */
-      const removePreset = async () => {
+      /** Delete one preset (defaults to the selected one). */
+      const removePreset = async (presetId) => {
         const sid = sessionId;
         const launch = viewOf(sid).launch;
-        if (launch.selectedId === '' || launch.presets.length <= 1) return;
+        const target = typeof presetId === 'string' && presetId !== '' ? presetId : launch.selectedId;
+        if (target === '' || launch.presets.length <= 1) return;
         commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: true, error: undefined } }));
         try {
-          const result = await runCommand(sid, '/mcdev preset-delete --preset-id-b64=' + encodeArg(launch.selectedId) + ' --json');
+          const result = await runCommand(sid, '/mcdev preset-delete --preset-id-b64=' + encodeArg(target) + ' --json');
           const data = result.data;
           if (result.kind === 'error' || data === undefined || data.ok === false) {
             const message = data !== undefined && typeof data.error === 'string' && data.error !== ''
@@ -1987,12 +2038,18 @@ body[data-ds-dark-theme] .mcd-root{
 
       React.useEffect(() => {
         if (!expanded) return undefined;
-        if (view.launch.page !== 'settings') return undefined;
-        if (view.launch.presets.length > 0 || view.launch.busy) return undefined;
-        void loadPresets(sessionId);
+        if (view.launch.page === 'main') return undefined;
+        if (view.launch.presets.length === 0) {
+          if (!view.launch.busy) void loadPresets(sessionId);
+          return undefined;
+        }
+        // A preset editor without a draft (deep link / restored page) opens the selected preset.
+        if (view.launch.page === 'preset' && view.launch.draft === undefined) {
+          void openPresetEditor(view.launch.selectedId || view.launch.activeId);
+        }
         return undefined;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-      }, [expanded, view.launch.page]);
+      }, [expanded, view.launch.page, view.launch.presets.length, view.launch.draft]);
 
       /** Force one status read (the only path that repeats it for the same session). */
       const refreshStatus = async () => {
@@ -2304,7 +2361,8 @@ body[data-ds-dark-theme] .mcd-root{
         }),
       ];
 
-      const settingsOpen = mode === 'full' && view.launch.page === 'settings';
+      const settingsPage = mode === 'full' ? view.launch.page : 'main';
+      const settingsOpen = settingsPage !== 'main';
 
       /** Full-mode action row: settings sits at the far right, after a flexible spacer. */
       const fullActions = [
@@ -2429,22 +2487,36 @@ body[data-ds-dark-theme] .mcd-root{
         ? h(
             'div',
             { className: 'mcd-topbar', key: 'settings-bar' },
-            h(IconButton, { key: 'back', icon: 'back', label: translate(t, 'back'), onClick: closeSettings }),
-            h('span', { className: 'mcd-topbar-title' }, translate(t, 'settingsTitle')),
             h(IconButton, {
-              key: 'add-preset',
-              icon: 'add',
-              label: translate(t, 'addPreset'),
-              disabled: view.launch.busy,
-              onClick: () => void addPreset(),
+              key: 'back',
+              icon: 'back',
+              label: settingsPage === 'preset' ? translate(t, 'backToPresets') : translate(t, 'back'),
+              onClick: settingsPage === 'preset' ? backToPresetList : closeSettings,
             }),
-            h(IconButton, {
-              key: 'delete-preset',
-              icon: 'delete',
-              label: translate(t, 'deletePreset'),
-              disabled: view.launch.busy || view.launch.presets.length <= 1,
-              onClick: () => void removePreset(),
-            }),
+            h(
+              'span',
+              { className: 'mcd-topbar-title' },
+              settingsPage === 'preset'
+                ? (view.launch.draft !== undefined && typeof view.launch.draft.name === 'string' ? view.launch.draft.name : translate(t, 'presets'))
+                : translate(t, 'settingsTitle'),
+            ),
+            settingsPage === 'presets'
+              ? h(IconButton, {
+                  key: 'add-preset',
+                  icon: 'add',
+                  label: translate(t, 'addPreset'),
+                  disabled: view.launch.busy,
+                  onClick: () => void addPreset(),
+                })
+              : h(IconButton, {
+                  key: 'save-preset',
+                  icon: 'check',
+                  variant: 'filled',
+                  label: translate(t, 'save'),
+                  busy: view.launch.busy,
+                  disabled: view.launch.busy,
+                  onClick: () => void saveDraft(),
+                }),
           )
         : null;
 
@@ -2475,7 +2547,80 @@ body[data-ds-dark-theme] .mcd-root{
         : null;
 
       let content = null;
-      if (settingsOpen) {
+      if (settingsOpen && view.launch.page === 'presets') {
+        const launch = view.launch;
+        const presets = Array.isArray(launch.presets) ? launch.presets : [];
+        const presetCards = presets.map((preset, index) => {
+          const host = preset.host !== null && typeof preset.host === 'object' ? preset.host : {};
+          const guests = Array.isArray(preset.guests) ? preset.guests.length : 0;
+          const active = preset.id === launch.activeId;
+          const exeName = typeof preset.gameExe === 'string' && preset.gameExe !== ''
+            ? preset.gameExe.split(/[\\/]/).pop()
+            : translate(t, 'gamePathAuto');
+          const world = typeof host.world === 'string' && host.world !== '' ? host.world : translate(t, 'worldDefault');
+          return h(
+            'div',
+            { className: 'mcd-card mcd-preset-card', key: preset.id },
+            h(
+              'div',
+              { className: 'mcd-card-head' },
+              h('span', { className: 'mcd-avatar' }, String(index + 1)),
+              h(
+                'div',
+                { className: 'mcd-preset-text' },
+                h('span', { className: 'mcd-preset-name' }, preset.name),
+                h('span', { className: 'mcd-helper' }, world + ' · ' + translate(t, 'guests') + ' ' + guests),
+                h('span', { className: 'mcd-helper mcd-preset-exe', title: preset.gameExe || '' }, exeName),
+              ),
+              active ? h('span', { className: 'mcd-badge mcd-badge-active' }, translate(t, 'presetActive')) : null,
+            ),
+            h(
+              'div',
+              { className: 'mcd-card-actions' },
+              h(IconButton, {
+                key: 'activate',
+                icon: 'check',
+                label: translate(t, 'setActive'),
+                variant: active ? 'tonal' : 'text',
+                disabled: launch.busy || active,
+                onClick: () => void selectPreset(preset.id),
+              }),
+              h(IconButton, {
+                key: 'edit',
+                icon: 'edit',
+                label: translate(t, 'editPreset'),
+                disabled: launch.busy,
+                onClick: () => void openPresetEditor(preset.id),
+              }),
+              h(IconButton, {
+                key: 'delete',
+                icon: 'delete',
+                label: translate(t, 'deletePreset'),
+                disabled: launch.busy || presets.length <= 1,
+                onClick: () => void removePreset(preset.id),
+              }),
+            ),
+          );
+        });
+        content = h(
+          'div',
+          { className: 'mcd-panel mcd-settings', role: 'region', key: 'panel-presets' },
+          launch.error !== undefined && launch.error !== '' ? h('p', { className: 'mcd-error', key: 'preset-error', role: 'alert' }, launch.error) : null,
+          h(
+            'div',
+            { className: 'mcd-scroll', key: 'preset-list' },
+            presets.length === 0 ? h('p', { className: 'mcd-empty' }, translate(t, 'noPresets')) : presetCards,
+            h(
+              'button',
+              { type: 'button', className: 'mcd-add-preset', key: 'add-preset-card', disabled: launch.busy, onClick: () => void addPreset() },
+              h(Icon, { name: 'add' }),
+              translate(t, 'addPreset'),
+            ),
+            h('p', { className: 'mcd-helper', key: 'preset-list-hint' }, translate(t, 'presetHint')),
+          ),
+        );
+      } else if (settingsOpen) {
+
         const launch = view.launch;
         const draft = launch.draft;
         const host = draft !== undefined && draft.host !== null && typeof draft.host === 'object' ? draft.host : {};
@@ -2620,13 +2765,6 @@ body[data-ds-dark-theme] .mcd-root{
                     { className: 'mcd-card-head' },
                     h('span', { className: 'mcd-card-title' }, h(Icon, { name: 'settings' }), translate(t, 'presets')),
                     h('span', { className: 'mcd-helper' }, launch.activeId === launch.selectedId ? translate(t, 'presetActive') : ''),
-                  ),
-                  selectField(
-                    translate(t, 'presets'),
-                    launch.selectedId,
-                    launch.presets.map((preset) => ({ value: preset.id, label: preset.name + (preset.id === launch.activeId ? '  ✓' : '') })),
-                    (value) => void selectPreset(value),
-                    'preset-select',
                   ),
                   textField(translate(t, 'presetName'), draft.name, (value) => updateDraft((next) => { next.name = value; }), { key: 'preset-name' }),
                   textField(translate(t, 'gamePath'), draft.gameExe, () => {}, { key: 'game-path', readOnly: true, placeholder: translate(t, 'gamePathPlaceholder') }),
@@ -3135,6 +3273,7 @@ body[data-ds-dark-theme] .mcd-root{
             failureLine,
             errorLine,
             noteLine,
+            settingsBar,
             tabBar,
             content,
           ),

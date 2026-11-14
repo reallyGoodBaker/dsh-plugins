@@ -134,6 +134,10 @@
     "gamePathDetected": "探测到：",
     "chooseGameFolder": "选择游戏文件夹",
     "packSourceImported": "导入",
-    "presetActive": "当前激活"
+    "presetActive": "当前激活",
+    "backToPresets": "返回预设选择",
+    "editPreset": "编辑预设",
+    "setActive": "设为当前预设",
+    "gamePathAuto": "自动探测的游戏路径"
   }
 }
