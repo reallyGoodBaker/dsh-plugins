@@ -409,6 +409,49 @@ body[data-ds-dark-theme] .mcd-root{
 @media (prefers-reduced-motion:reduce){
   .mcd-btn,.mcd-icon-btn,.mcd-chip,.mcd-tab,.mcd-menu-item,.mcd-add-preset,.mcd-logo-btn,.mcd-field-control,.mcd-select-trigger,.mcd-switch-track,.mcd-switch-thumb,.mcd-check input[type=checkbox]{transition:none}
 }
+
+/* ================= Material 3 strict refinements ================= */
+/* typescale (M3): Title L 22/28, Title M 16/24, Body M 14/20, Body S 12/16, Label L 14/20, Label M 12/16 */
+.mcd-root{font-size:14px;line-height:20px}
+.mcd-title{font-size:16px;line-height:24px;font-weight:500}
+.mcd-subtitle{font-size:12px;line-height:16px}
+.mcd-topbar-title{font-size:22px;line-height:28px;font-weight:400}
+.mcd-card-title{font-size:16px;line-height:24px;font-weight:500}
+.mcd-field-label{font-weight:500;line-height:16px}
+.mcd-btn{font-size:14px;line-height:20px}
+.mcd-tab{font-size:14px;line-height:20px}
+.mcd-menu-item{font-size:14px;line-height:20px}
+.mcd-chip{font-size:14px;line-height:20px}
+.mcd-hint,.mcd-helper,.mcd-tooltip{font-size:12px;line-height:16px}
+.mcd-line{font-size:12px;line-height:18px}
+/* focus indicator uses the primary color (M3) */
+.mcd-root :focus-visible{outline:2px solid var(--mcd-primary);outline-offset:2px}
+/* extended FAB for the single start/stop action (56dp, 16dp radius, elevation 1→3) */
+.mcd-fab-btn,.mcd-actions-row .mcd-icon-btn.mcd-fab-btn{width:56px;height:56px;border-radius:16px;box-shadow:var(--mcd-shadow-1)}
+.mcd-fab-btn svg,.mcd-actions-row .mcd-icon-btn.mcd-fab-btn svg{width:24px;height:24px}
+.mcd-fab-btn:not(:disabled):hover{box-shadow:var(--mcd-shadow-2)}
+.mcd-fab-btn:not(:disabled):active{box-shadow:var(--mcd-shadow-1)}
+/* disabled tokens: on-surface 38% content, 12% container */
+.mcd-btn:disabled{border-color:transparent;background-color:transparent;color:color-mix(in srgb,var(--mcd-on-surface) 38%,transparent);opacity:1}
+.mcd-btn[data-variant=outlined]:disabled{border-color:color-mix(in srgb,var(--mcd-outline) 12%,transparent)}
+.mcd-btn[data-variant=filled]:disabled,.mcd-btn[data-variant=tonal]:disabled{background-color:color-mix(in srgb,var(--mcd-on-surface) 12%,transparent);color:color-mix(in srgb,var(--mcd-on-surface) 38%,transparent)}
+.mcd-icon-btn[data-variant=filled]:disabled,.mcd-icon-btn[data-variant=tonal]:disabled{background-color:color-mix(in srgb,var(--mcd-on-surface) 12%,transparent);color:color-mix(in srgb,var(--mcd-on-surface) 38%,transparent);opacity:1}
+/* outlined field: hover/focus label + border per M3 */
+.mcd-field-control:hover:not(:disabled):not(:focus){border-color:var(--mcd-on-surface)}
+.mcd-field:focus-within .mcd-field-label{color:var(--mcd-primary)}
+.mcd-field-control:disabled{border-color:color-mix(in srgb,var(--mcd-outline) 12%,transparent);color:color-mix(in srgb,var(--mcd-on-surface) 38%,transparent)}
+/* checkbox hover state layer */
+.mcd-check:hover input[type=checkbox]:not(:checked){background-color:color-mix(in srgb,var(--mcd-on-surface) 8%,transparent)}
+/* switch thumb shadow + focus ring per M3 */
+.mcd-switch-track{box-shadow:var(--mcd-shadow-1)}
+.mcd-switch input:focus-visible + .mcd-switch-track{outline:2px solid var(--mcd-primary);outline-offset:2px}
+/* menu / tooltip motion (M3 emphasized decelerate) */
+@keyframes mcd-menu-in{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+@keyframes mcd-tooltip-in{from{opacity:0;scale:.96}to{opacity:1;scale:1}}
+.mcd-menu{animation:mcd-menu-in .3s var(--mcd-ease-emphasized);transform-origin:top center}
+.mcd-menu[data-above=true]{transform-origin:bottom center}
+.mcd-tooltip{position:absolute;z-index:60;max-width:260px;padding:4px 8px;border-radius:4px;background:var(--mcd-surface-container-highest);color:var(--mcd-on-surface);box-shadow:var(--mcd-shadow-2);pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;animation:mcd-tooltip-in .2s var(--mcd-ease)}
+@media (prefers-reduced-motion:reduce){.mcd-menu,.mcd-tooltip{animation:none}}
   `;
 
     /** Panel copy. Client locale dictionaries are separate from the Host locale files. */
@@ -1216,12 +1259,12 @@ body[data-ds-dark-theme] .mcd-root{
         'button',
         {
           type: 'button',
-          className: 'mcd-icon-btn' + (busy ? ' mcd-busy' : ''),
+          className: 'mcd-icon-btn' + (busy ? ' mcd-busy' : '') + (props.fab === true ? ' mcd-fab-btn' : ''),
           'data-variant': props.variant || 'text',
           'data-on': pressed === undefined ? undefined : pressed ? 'true' : 'false',
           'aria-pressed': pressed === undefined ? undefined : pressed ? 'true' : 'false',
           'aria-label': props.label,
-          title: props.label,
+          'data-tip': props.label,
           disabled: props.disabled === true,
           onClick: props.onClick,
           onKeyDown: props.onKeyDown,
@@ -1288,8 +1331,10 @@ body[data-ds-dark-theme] .mcd-root{
       const [newWorldName, setNewWorldName] = React.useState('');
       const [newWorldFrom, setNewWorldFrom] = React.useState('');
       const [selectMenu, setSelectMenu] = React.useState(undefined);
+      const [tooltip, setTooltip] = React.useState(undefined);
       const menuRef = React.useRef(null);
       const rippleTimer = React.useRef(0);
+      const tooltipTimer = React.useRef(0);
 
       const alive = React.useRef(true);
       const sessionRef = React.useRef(sessionId);
@@ -2502,7 +2547,7 @@ body[data-ds-dark-theme] .mcd-root{
       })();
 
       const primaryActions = [
-        h(IconButton, toggleAction),
+        h(IconButton, { ...toggleAction, fab: true }),
         h(IconButton, {
           key: 'refresh',
           icon: 'refresh',
@@ -3419,8 +3464,26 @@ body[data-ds-dark-theme] .mcd-root{
         );
       }
 
+      const tooltipLayer = tooltip === undefined
+        ? null
+        : h(
+            'div',
+            {
+              className: 'mcd-tooltip',
+              key: 'tooltip',
+              role: 'tooltip',
+              style: {
+                left: tooltip.x + 'px',
+                top: tooltip.y + 'px',
+                transform: tooltip.above ? 'translate(-50%,-100%)' : 'translate(-50%,0)',
+              },
+            },
+            tooltip.text,
+          );
+
       /** M3 ripple: pointer-down sets the origin, CSS runs the expanding state layer. */
       const onRipplePointerDown = (event) => {
+        hideTooltip();
         const point = event.target;
         if (point === null || point === undefined || typeof point.closest !== 'function') return;
         const target = point.closest('.mcd-btn,.mcd-icon-btn,.mcd-chip,.mcd-tab,.mcd-menu-item,.mcd-add-preset,.mcd-logo-btn');
@@ -3436,6 +3499,46 @@ body[data-ds-dark-theme] .mcd-root{
         rippleTimer.current = window.setTimeout(() => {
           if (target.isConnected) target.setAttribute('data-ripple-run', 'false');
         }, 520);
+      };
+
+      /** M3 plain tooltip for icon buttons; replaces the native `title` bubble. */
+      const hideTooltip = () => {
+        window.clearTimeout(tooltipTimer.current);
+        setTooltip(undefined);
+      };
+      const onShowTooltip = (event) => {
+        const point = event.target;
+        if (point === null || point === undefined || typeof point.closest !== 'function') return;
+        const target = point.closest('[data-tip]');
+        if (target === null || target.disabled === true) return;
+        const root = rootRef.current;
+        if (root === null) return;
+        window.clearTimeout(tooltipTimer.current);
+        tooltipTimer.current = window.setTimeout(() => {
+          if (!target.isConnected) return;
+          const text = target.getAttribute('data-tip');
+          if (text === null || text === '') return;
+          const rootRect = root.getBoundingClientRect();
+          const rect = target.getBoundingClientRect();
+          const half = 120;
+          const above = rect.top - rootRect.top > 44;
+          setTooltip({
+            text,
+            x: Math.max(8, Math.min(rootRect.width - 8, rect.left - rootRect.left + rect.width / 2)),
+            y: above ? rect.top - rootRect.top - 6 : rect.bottom - rootRect.top + 6,
+            above,
+            maxWidth: half,
+          });
+        }, 550);
+      };
+      const onHideTooltip = (event) => {
+        const point = event.target;
+        if (point === null || point === undefined || typeof point.closest !== 'function') return;
+        const target = point.closest('[data-tip]');
+        if (target === null) return;
+        const related = event.relatedTarget;
+        if (related !== null && related !== undefined && typeof target.contains === 'function' && target.contains(related)) return;
+        hideTooltip();
       };
 
       const selectLayer = selectMenu === undefined
@@ -3456,6 +3559,7 @@ body[data-ds-dark-theme] .mcd-root{
                 ref: menuRef,
                 role: 'listbox',
                 'aria-label': selectMenu.label,
+                'data-above': selectMenu.above ? 'true' : 'false',
                 tabIndex: -1,
                 style: selectMenu.above
                   ? { left: selectMenu.left + 'px', width: selectMenu.width + 'px', bottom: selectMenu.bottom + 'px', maxHeight: selectMenu.maxHeight + 'px' }
@@ -3510,6 +3614,10 @@ body[data-ds-dark-theme] .mcd-root{
           'data-resizing': resizing ? 'true' : 'false',
           'aria-label': translate(t, 'title'),
           onPointerDownCapture: onRipplePointerDown,
+          onPointerOver: onShowTooltip,
+          onPointerOut: onHideTooltip,
+          onFocusIn: onShowTooltip,
+          onFocusOut: onHideTooltip,
           onKeyDown: (event) => {
             if (event.key === 'Escape') {
               event.preventDefault();
@@ -3553,6 +3661,7 @@ body[data-ds-dark-theme] .mcd-root{
             onKeyDown: onResizeKeyDown,
           }),
           selectLayer,
+          tooltipLayer,
         ),
       );
     }
