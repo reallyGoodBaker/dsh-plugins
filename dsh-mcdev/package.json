@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-mcdev",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "private": true,
   "type": "module",
   "description": "NetEase Minecraft (网易我的世界) development companion: launch the ModPC dev client from DSH with the plugin own launcher, follow the official game log, talk to an in-game bridge pack, search the bundled NetEase ModSDK documentation, and assist mod development.",

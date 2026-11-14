@@ -30,7 +30,7 @@ function makeProject() {
 
 // 1) normalizePreset: defaults, name fallback, host normalization
 {
-  const preset = normalizePreset({ name: '  ', host: { world: ' W ', behaviorPacks: [' a ', 'a', 'b'], resourcePacks: null, slim: 'yes' } })
+  const preset = normalizePreset({ name: '  ', host: { world: ' W ', behaviorPacks: [' a ', 'a', 'b'], resourcePacks: null, slim: 'yes', playerName: '  DSH_Tester  ' } })
   assert.ok(preset.id.startsWith('p-'))
   assert.equal(preset.name, '默认预设')
   assert.equal(preset.gameExe, '')
@@ -38,6 +38,9 @@ function makeProject() {
   assert.deepEqual(preset.host.behaviorPacks, ['a', 'b'])
   assert.equal(preset.host.resourcePacks, null)
   assert.equal(preset.host.slim, false)
+  assert.equal(preset.host.playerName, 'DSH_Tester', 'host username is stored for the cppconfig player_info')
+  assert.equal(normalizePreset({}).host.playerName, 'developer', 'host username defaults to developer')
+  assert.equal(normalizePreset({ host: { playerName: '   ' } }).host.playerName, 'developer', 'blank username falls back to developer')
   assert.equal(preset.host.skinsDir, undefined, 'skins are project-managed, not per preset')
   console.log('ok 1 - normalizePreset fills defaults and normalizes the host')
 }
@@ -115,15 +118,17 @@ function makeProject() {
 // 6) resolveHostLaunch is explicit-only: no .mcdev.json fallback
 {
   const explicit = resolveHostLaunch(
-    normalizePreset({ host: { world: 'P_WORLD', skin: 'C:/p.png', slim: true } }),
+    normalizePreset({ host: { world: 'P_WORLD', skin: 'C:/p.png', slim: true, playerName: 'P_User' } }),
   )
   assert.equal(explicit.world, 'P_WORLD')
   assert.equal(explicit.skin, 'C:/p.png')
   assert.equal(explicit.slim, true)
+  assert.equal(explicit.playerName, 'P_User')
   const empty = resolveHostLaunch(normalizePreset({}), 'FALLBACK_WORLD')
   assert.equal(empty.world, 'FALLBACK_WORLD')
   assert.equal(empty.skin, '')
   assert.equal(empty.slim, false)
+  assert.equal(empty.playerName, 'developer')
   assert.equal(empty.behaviorPacks, null)
   console.log('ok 6 - resolveHostLaunch never reads .mcdev.json')
 }

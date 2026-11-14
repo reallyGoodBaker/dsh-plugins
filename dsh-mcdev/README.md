@@ -22,7 +22,7 @@
 
 - Windows + 已安装网易 MC Studio / ModPC 开发包（`C:\MCStudioDownload\game\MinecraftPE_Netease\<版本>\Minecraft.Windows.exe`，或设置 `MCDEV_GAME_DIR`）；
 - 开发世界：默认 `%APPDATA%\MinecraftPE_Netease\minecraftWorlds\MC_DEV_WORLD`；不存在时 `start()` 会尝试用 `world_templates` 模板创建，仍失败则提示先用 MC Studio 创建一次；
-- 工程根目录建议放行为包/资源包：`bp/`、`rp/`（用于包清单；不再读取 `.mcdev.json`）。
+- 工程根目录建议放行为包/资源包：`bp/`、`rp/`（用于包清单）。
 
 ## 安装
 
@@ -64,7 +64,7 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
 
 ### 启动预设（presets）
 
-一个预设 = **游戏路径 + 1 个 host + 若干 guest**，保存在 **`<工程>/.mcdev/launch-presets.json`**。预设**完全自包含**：插件不再读取或兼容 `.mcdev.json`，启动所需的游戏路径、世界、包、皮肤全部来自预设本身。
+一个预设 = **游戏路径 + 1 个 host + 若干 guest**，保存在 **`<工程>/.mcdev/launch-presets.json`**。预设**完全自包含**：启动所需的游戏路径、世界、包、皮肤全部来自预设本身。
 
 ```json
 {
@@ -96,7 +96,7 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
 - **行为包/资源包/皮肤全部通过系统文件夹选择器导入**（`filepicker`），复制到 `<工程>/.mcdev/packs/{behavior,resource}/...` 与 `<工程>/.mcdev/skins/`，用户不需要手工输入任何路径；
 - 面板 full 模式动作行**最右侧的齿轮**打开 M3 风格的设置页，分两级：
   - **预设列表页**：每个预设一张卡片（序号、名称、世界 · 访客数、游戏 exe、当前激活徽标），卡片上有「设为当前 / 编辑 / 删除」三个按钮，底部是「＋ 新增预设」；
-  - **预设编辑页**：点卡片的编辑按钮进入，顶部返回按钮回到预设列表；页内是预设信息卡（名称、游戏路径 + 选择游戏文件夹/使用探测路径）、主机卡（世界/新建世界、行为包/资源包选择器 + 皮肤选择 + 纤细模型）、访客卡（访客皮肤与纤细模型）；包选择器每项是 M3 list item：圆形包图标（行为包 puzzle / 资源包 palette）、名称、来源与版本副标题、trailing checkbox，section 头是「+ 导入包」文字按钮；顶部 ✔ 保存后返回列表。
+  - **预设编辑页**：点卡片的编辑按钮进入，顶部返回按钮回到预设列表；页内是预设信息卡（名称、游戏路径 + 选择游戏文件夹/使用探测路径）、主机卡（用户名、世界/新建世界、行为包/资源包选择器 + 皮肤选择 + 纤细模型）、访客卡（用户名、访客皮肤与纤细模型）；包选择器每项是 M3 list item：圆形包图标（行为包 puzzle / 资源包 palette）、名称、来源与版本副标题、trailing checkbox，section 头是「+ 导入包」文字按钮；顶部 ✔ 保存后返回列表。
 
 ### Agent 工具 `mcdev`
 
@@ -112,6 +112,7 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
 - **compact 模式**：点击图标进入——图标 + 标题 + 状态 + 「放大」按钮，以及启动/停止、刷新、重载三个动作；不展示日志等其余内容；
 - **full 模式**：compact 点「放大」进入——完整 M3 卡片（拖拽条、标题栏、动作行、M3 primary tabs 日志/执行代码/文档）；动作行**最右侧的齿轮**在面板内打开设置页（预设卡片列表 → 编辑单个预设），返回按钮逐级回到主界面；
 - **多游戏实例**：同时连接多个游戏时，日志页（游戏日志源）与执行代码页会出现「游戏实例」选择器（M3 下拉：自动/最近连接，或按 客户端/服务端、世界、版本、是否本插件启动 区分），切换后查看/执行的日志与代码只作用于所选实例；
+- **访客客户端**：启动预设时，主机之外会为每个访客额外拉起一个空白 Mod PC 客户端（主菜单形态，等同 MC Studio 工具箱启动的第二个客户端）；在空白客户端【好友】里加入主机世界即可联机。访客客户端不能从启动参数指定世界/皮肤/名称，联机加入仍需手动；主机用户名可在预设里编辑（写入 `player_info.user_name`），访客用户名仅作为面板标识；
 - **切换规则**：icon 点图标 → compact；compact 点图标 → icon；compact 点放大 → full；full 点缩小 → compact；full 点图标 → icon；
 - **启动/停止合并为一个按钮**（▶ / ■ / ✕），其余动作全部是带 tooltip 与 aria-label 的图标按钮；
 - 全部颜色/圆角/字体走 M3 token（Minecraft 绿主色、surface-container 系列、state layer、深浅主题 fallback、`prefers-reduced-motion`）；
@@ -128,7 +129,7 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
 | `docsDir` | `''` | 文档目录；空 = 插件内置 `docs/` |
 | `startTimeoutMs` | `180000` | agent `start` 默认等待进入存档的时间 |
 
-**注意**：本版本已**移除 `.mcdev.json` 兼容**——启动所需的世界/包/皮肤/游戏路径全部来自插件自有的启动预设；工程里的 `bp/`、`rp/` 只用于发现可选包。
+**注意**：启动所需的世界/包/皮肤/游戏路径全部来自插件自有的启动预设；工程里的 `bp/`、`rp/` 只用于发现可选包。
 
 ## 验证记录（2026-11-14，本机真机）
 
@@ -159,7 +160,7 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
 | --- | --- | --- |
 | `scripts/test-host.mjs` | 6 | 命令解析、配置归一、base64 |
 | `scripts/test-integration.mjs` | 10 | 假 Cordis 上下文下的命令/工具注册、docs 检索、discover（provider=native）、`--json` 文档形状 |
-| `scripts/test-native-util.mjs` | 9 | 日志环形缓冲游标/ANSI/错误过滤、`.mcdev.json` 合并与备份、游戏版本发现、世界占用进程识别 |
+| `scripts/test-native-util.mjs` | 9 | 日志环形缓冲游标/ANSI/错误过滤、游戏版本发现、世界占用进程识别 |
 | `scripts/test-native-channel.mjs` | 5 | bridge TCP 握手：token 缺失/错误被拒、hello 前消息忽略、重连替换 |
 | `scripts/test-client-shapes.mjs` | 6 | 面板 payload 解包与错误文案（回归测试） |
 | `scripts/test-locale-parity.mjs` | 59 | `lib/client.js` 内联 en/zh 与 `locale/*.json` 逐键一致 |

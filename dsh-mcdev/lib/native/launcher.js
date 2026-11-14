@@ -182,9 +182,11 @@ export function writeDevConfig(worldDir, config = {}) {
   const cppconfigPath = cppconfigPathOf(worldDir);
   fs.mkdirSync(worldDir, { recursive: true });
   const skinInfo = config.skin_info && typeof config.skin_info === 'object' ? config.skin_info : {};
+  const playerInfo = config.player_info && typeof config.player_info === 'object' ? config.player_info : {};
+  const userName = String(playerInfo.user_name || '').replace(/[\r\n\t]/g, ' ').trim().slice(0, 32) || 'developer';
   const worldName = String(config.world_folder_name || config.world_name || DEFAULT_WORLD_NAME);
   const devConfig = {
-    player_info: { urs: '', user_id: 0, user_name: 'developer' },
+    player_info: { urs: '', user_id: 0, user_name: userName },
     room_info: {},
     skin_info: { skin: String(skinInfo.skin || ''), slim: Boolean(skinInfo.slim) },
     world_info: { level_id: worldName },
@@ -355,6 +357,28 @@ export function spawnGame(options) {
     detached,
   });
   // detached 模式用于探针 --keep：让游戏在 Host 进程退出后继续运行（unref 不阻止 Node 退出）
+  if (detached && typeof child.unref === 'function') child.unref();
+  return child;
+}
+
+/**
+ * 启动一个"空白" Mod PC 开发客户端：只打开主菜单，不加载任何世界。
+ * 官方局域网多人测试里的第二个客户端（MC Studio 工具箱 → Mod PC 开发包）就是这种形态；
+ * 它没有 dev_config.cppconfig，加入世界要在游戏里手动点【好友】。
+ * @param {{exe:string, extraArgs?:string[], detached?:boolean}} options
+ * @returns {import('node:child_process').ChildProcess}
+ */
+export function spawnBareGame(options = {}) {
+  const { exe } = options;
+  if (!exe || !fs.existsSync(exe)) throw new Error(`游戏可执行文件不存在：${exe || '<空>'}`);
+  const args = ['chatExtension=false', ...(options.extraArgs || [])];
+  const detached = Boolean(options.detached);
+  const child = spawn(exe, args, {
+    cwd: path.dirname(exe),
+    windowsHide: false,
+    stdio: 'ignore',
+    detached,
+  });
   if (detached && typeof child.unref === 'function') child.unref();
   return child;
 }

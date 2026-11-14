@@ -1,6 +1,13 @@
-# dsh-mcdev — 实现契约（v0.9.1：访客说明 / 局域网多人测试流程）
+# dsh-mcdev — 实现契约（v0.10.0：访客自动多开 / 用户名可编辑）
 
-> **v0.9.1 变更（文案）**：访客卡片说明改为官方多人测试流程：访客只保存皮肤；本地多人测试需要保持 host 运行 + 用 MC Studio【工具箱 → Mod PC 开发包】再启动一个客户端 + 在【好友】里手动加入世界。官方开发客户端不支持通过启动参数自动加入房间（实测无世界 `cppconfig` 启动会直接崩溃），因此本插件不会自动拉起访客。参考官方文档：<https://dev.mc.163.com/dev/mcmanual/mc-dev/mcguide/30-测试/0-ModPC开发包多人测试.html>。仅 Client/文案改动。
+> **v0.10.0 变更（功能 + UI）**：
+> - **主机用户名**：预设 `host.playerName`（默认 `developer`）写入 `dev_config.cppconfig.player_info.user_name`；实测写入生效；`presets`/`preset-save` schema 接受该字段，`resolveHostLaunch` 返回 `playerName`；`presets` 列表/编辑器新增「用户名」输入框。
+> - **访客自动多开**：`start` 时按预设 `guests` 数量，为主机之外每个访客额外拉起一个**空白 Mod PC 客户端**（`Minecraft.Windows.exe chatExtension=false`，主菜单形态，等价于 MC Studio【工具箱 → Mod PC 开发包】启动的第二个客户端）；guest 客户端 pid 记入 `status.guestPids`（status/文本渲染显示），`stop`/主机退出时一并结束，避免孤儿窗口。
+> - **访客用户名**：guest 的 `name` 现在作为「用户名」在卡片里可编辑（仅本面板标识）；空白客户端不支持从启动参数指定世界/皮肤/用户名（实测无世界 `cppconfig` 会以 0xC0000409 退出），实际游戏内名/皮肤取客户端默认值；联机仍需在空白客户端【好友】里手动加入主机世界。
+> - **UI 文案**：访客说明改写为“启动时每个访客各开一个空白客户端 + 好友加入”；移除所有 `.mcdev.json` 相关提示（`presetHint`/`configHint` 改为中性文案），预设编辑器不再提旧配置文件的兼容。
+> - 工具 help / skill 文本同步（start 说明、presets 说明）。
+
+> **v0.9.1 变更（访客说明 / 局域网多人测试流程）**：访客卡片说明改为官方多人测试流程：访客只保存皮肤；本地多人测试需要保持 host 运行 + 用 MC Studio【工具箱 → Mod PC 开发包】再启动一个客户端 + 在【好友】里手动加入世界。官方开发客户端不支持通过启动参数自动加入房间（实测无世界 `cppconfig` 启动会直接崩溃），因此本插件不会自动拉起访客。参考官方文档：<https://dev.mc.163.com/dev/mcmanual/mc-dev/mcguide/30-测试/0-ModPC开发包多人测试.html>。仅 Client/文案改动。
 
 > **v0.9.0 变更（功能 + UI）**：同一台机器上同时连多个游戏实例时，日志与执行代码可以按实例切换。
 > - **channel**：每侧（client/server）可并存多个连接；hello 上报 `pid`/`levelId`；`clients()` 返回 `{id, side, pid, levelId, version, since, remotePort}`；同 `pid` 重连替换旧连接，不同实例并存；`ping`/`exec`/`reload` 支持按 `machine`（连接 id）路由；log 事件带连接 id/pid。

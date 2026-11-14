@@ -40,6 +40,7 @@ import {
   releaseWorldLock,
   resetDevWorld,
   spawnGame,
+  spawnBareGame,
   stopGame,
   worldDirOf,
   writeDevConfig,
@@ -158,6 +159,11 @@ export class NativeProvider {
 
     this._phase = 'idle';
     this._gamePid = null;
+    /** 本次启动主机使用的游戏内用户名（dev_config.cppconfig player_info.user_name）。 */
+    this._hostPlayerName = '';
+    /** 为预设里的每个访客额外拉起的客户端进程（停在主菜单，手动【好友】联机）。 */
+    this._guestPids = [];
+    this._guestChildren = [];
     this._child = null;
     this._since = null;
     this._lastError = '';
@@ -419,6 +425,7 @@ export class NativeProvider {
         presetId: this._presetId || undefined,
         presetName: this._presetName || undefined,
         guests: this._guestCount || 0,
+        launchedGuests: this._guestPids.length,
       },
       bridge: {
         port: this._activePort || 0,
@@ -434,6 +441,7 @@ export class NativeProvider {
     };
     if (this._gamePid) status.gamePid = this._gamePid;
     if (this._gamePid) status.pid = this._gamePid;
+    if (this._guestPids.length > 0) status.guestPids = [...this._guestPids];
     if (this._since) {
       status.since = this._since;
       status.elapsedMs = Date.now() - this._since;
@@ -487,11 +495,17 @@ export class NativeProvider {
     const launchConfig = {
       world_folder_name: worldName,
       world_name: worldName,
+      player_info: {
+        user_name: typeof options.playerName === 'string' && options.playerName.trim() !== ''
+          ? options.playerName.trim()
+          : host.playerName,
+      },
       skin_info: {
         skin: options.skin !== undefined ? String(options.skin) : String(host.skin || ''),
         slim: options.slim !== undefined ? options.slim === true : host.slim === true,
       },
     };
+    this._hostPlayerName = launchConfig.player_info.user_name;
     this._worldName = worldName;
     this._presetId = preset.id;
     this._presetName = preset.name;
@@ -662,6 +676,37 @@ export class NativeProvider {
         this._lastError = `游戏进程错误：${errorMessage(error)}`;
         if (this._logFollower) this._logFollower.note(this._lastError);
       });
+
+      // 6) 访客客户端：预设里有几个 guest 就额外拉起几个空白客户端（主菜单形态，
+      //    和 MC Studio【工具箱 → Mod PC 开发包】启动的第二个客户端一样）。
+      //    它们没有 cppconfig，不自动进世界；需要在游戏里【好友】加入本机世界。
+      const guests = Array.isArray(preset.guests) ? preset.guests : [];
+      this._guestCount = guests.length;
+      this._guestPids = [];
+      this._guestChildren = [];
+      if (guests.length > 0 && options.launchGuests !== false) {
+        for (let index = 0; index < guests.length; index += 1) {
+          const guestName = typeof guests[index].name === 'string' && guests[index].name !== '' ? guests[index].name : `Guest ${index + 1}`;
+          try {
+            const guestChild = spawnBareGame({ exe: game.exe, detached: this._detachedGames });
+            const guestPid = Number(guestChild.pid) || 0;
+            if (guestPid > 0) {
+              this._guestPids.push(guestPid);
+              this._guestChildren.push(guestChild);
+            }
+            this._logFollower.note(`访客客户端「${guestName}」已启动：pid=${guestPid || '?'}（主菜单；请在【好友】里加入本机世界）`);
+            guestChild.on('exit', () => {
+              this._guestPids = this._guestPids.filter((pid) => pid !== guestPid);
+              this._guestChildren = this._guestChildren.filter((item) => item !== guestChild);
+            });
+            guestChild.on('error', (error) => {
+              if (this._logFollower) this._logFollower.note(`访客客户端「${guestName}」启动错误：${errorMessage(error)}`);
+            });
+          } catch (error) {
+            this._logFollower.note(`访客客户端「${guestName}」启动失败：${errorMessage(error)}`);
+          }
+        }
+      }
     } catch (error) {
       // 启动失败：清理已创建的资源，避免残留（channel/日志跟随）
       this._lastError = `启动失败：${errorMessage(error)}`;
@@ -733,6 +778,18 @@ export class NativeProvider {
   /** 停止游戏（只结束本 provider 启动的进程）。 */
   async stop() {
     this._stopRequested = true;
+    // 先收掉为访客额外拉起的客户端（主界面进程），再停主机。
+    const guestPids = this._guestPids.splice(0);
+    this._guestChildren = [];
+    for (const guestPid of guestPids) {
+      if (!isProcessAlive(guestPid)) continue;
+      if (this._logFollower) this._logFollower.note(`停止访客客户端（pid=${guestPid}）…`);
+      try {
+        await stopGame(guestPid);
+      } catch (error) {
+        if (this._logFollower) this._logFollower.note(`停止访客客户端失败：${errorMessage(error)}`);
+      }
+    }
     const pid = this._gamePid && isProcessAlive(this._gamePid) ? this._gamePid : null;
     if (pid) {
       if (this._logFollower) this._logFollower.note(`停止游戏进程（pid=${pid}）…`);
@@ -753,6 +810,7 @@ export class NativeProvider {
     this._gamePid = null;
     this._child = null;
     this._readyInfo = null;
+    this._hostPlayerName = '';
     this._releaseWorldLock();
     return this.status();
   }
@@ -1002,6 +1060,7 @@ export class NativeProvider {
     this._gamePid = null;
     this._child = null;
     this._phase = 'stopped';
+    this._hostPlayerName = '';
     this._releaseWorldLock();
   }
 
@@ -1080,6 +1139,7 @@ export class NativeProvider {
         inWorld,
         levelId,
         launchedHere: client.pid > 0 && client.pid === this._gamePid,
+        playerName: client.pid > 0 && client.pid === this._gamePid ? this._hostPlayerName || '' : '',
         version: client.version,
       });
     }
@@ -1103,6 +1163,13 @@ export class NativeProvider {
     const wasStopping = this._stopRequested;
     this._gamePid = null;
     this._child = null;
+    this._hostPlayerName = '';
+    // 主机退出时把为访客额外拉起的客户端一并收掉，避免留下孤儿窗口。
+    const guestPids = this._guestPids.splice(0);
+    this._guestChildren = [];
+    for (const guestPid of guestPids) {
+      if (isProcessAlive(guestPid)) stopGame(guestPid).catch(() => {});
+    }
     this._resetChannel();
     if (this._logFollower) {
       this._logFollower.stop();
