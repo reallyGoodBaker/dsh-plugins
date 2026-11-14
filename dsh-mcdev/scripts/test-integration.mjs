@@ -181,6 +181,15 @@ async function runCommand(rawInput) {
   console.log('ok 11 - /mcdev presets --json ->', payload.state.presets.length, 'presets,', payload.worlds.length, 'worlds')
 }
 
+// 7b. machines: the logs/exec selector can list game instances even when none is connected
+{
+  const result = await runCommand('--json games')
+  const payload = JSON.parse(result.text)
+  assert.equal(payload.ok, true, payload.error ?? 'games read failed')
+  assert.ok(Array.isArray(payload.machines), 'machines is an array')
+  console.log('ok 12 - /mcdev games --json ->', payload.machines.length, 'connected instances')
+}
+
 // 8. .mcdev.json compatibility removed: the old config action is gone
 {
   const result = await runCommand('--json config')
