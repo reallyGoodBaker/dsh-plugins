@@ -1,5 +1,7 @@
 # DSH Plugins
 
+[![CI](https://github.com/reallyGoodBaker/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/reallyGoodBaker/dsh-plugins/actions/workflows/ci.yml)
+
 DeepSeek Harness（DSH）插件集合：把 Minecraft 网易版开发、智能方向选择、工作区检查点与多智能体工作流做成可直接安装的 DSH bundle。
 
 > 这些插件最初开发于一个游戏项目仓库，现已独立维护。每个子目录都是**独立的 DSH bundle 包**，可以单独安装、单独发布。

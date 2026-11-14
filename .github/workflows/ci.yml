@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax check (all plugins)
+        run: |
+          for plugin in dsh-mcdev smart-direction smart-workflow dsh-checkpoint; do
+            find "$plugin" -name '*.js' -not -path '*/client.js' -not -path '*/node_modules/*' -print0 \
+              | xargs -0 -r -n1 node --check
+            find "$plugin" -name '*.mjs' -not -path '*/node_modules/*' -print0 \
+              | xargs -0 -r -n1 node --check
+          done
+      - name: dsh-mcdev tests
+        working-directory: dsh-mcdev
+        run: |
+          node scripts/test-host.mjs
+          node scripts/test-integration.mjs
+          node scripts/test-native-util.mjs
+          node scripts/test-native-channel.mjs
+          node scripts/test-client-shapes.mjs
+          node scripts/test-locale-parity.mjs
+          node scripts/test-docs-search.mjs
