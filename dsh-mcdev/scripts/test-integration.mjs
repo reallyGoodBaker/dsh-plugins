@@ -9,7 +9,11 @@
  *   node scripts/test-integration.mjs
  */
 import assert from 'node:assert/strict'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { applyMcdev, jsonPayloadOf } from '../lib/host/plugin.js'
+
+const bundleRoot = path.resolve(fileURLToPath(new URL('..', import.meta.url)))
 
 /** Minimal Cordis context double. */
 function createContext() {
@@ -60,7 +64,7 @@ function createContext() {
 const fakeAgent = { id: 'session-test', session: { id: 'session-test', header: { cwd: 'C:\\Projects\\tgw' } } }
 
 const { ctx, state } = createContext()
-applyMcdev(ctx, { docsDir: 'C:\\Projects\\tgw\\dsh-plugins\\dsh-mcdev\\docs' })
+applyMcdev(ctx, { docsDir: path.join(bundleRoot, 'docs') })
 
 assert.ok(state.services.has('mcdev'), 'mcdev service is provided')
 assert.ok(state.commands.has('mcdev'), '/mcdev command registered')

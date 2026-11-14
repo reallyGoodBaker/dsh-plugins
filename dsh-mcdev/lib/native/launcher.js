@@ -128,7 +128,7 @@ function copyDirRecursive(source, target) {
 }
 
 /** 找出第一个可用的世界模板目录（含 level.dat 的子目录）。 */
-function findWorldTemplate() {
+export function findWorldTemplate() {
   for (const base of worldTemplateDirs()) {
     if (!fs.existsSync(base)) continue;
     let entries = [];
@@ -228,6 +228,111 @@ export function resetDevWorld(projectDir, config = {}) {
     /* levelname.txt 不是必需 */
   }
   return { reset: true, backupDir, worldDir };
+}
+
+/** 世界名校验：只接受单层目录名（不含路径分隔符 / 通配符 / 控制字符）。 */
+export function isValidWorldName(name) {
+  const value = String(name === undefined || name === null ? '' : name).trim();
+  if (value === '' || value.length > 64) return false;
+  if (value === '.' || value === '..') return false;
+  // eslint-disable-next-line no-control-regex
+  return !/[\\/:*?"<>|\u0000-\u001f]/.test(value);
+}
+
+/** 世界目录里两个 pack 清单的条目数（读不到按 0 计）。 */
+function worldPackCount(worldDir, file) {
+  try {
+    const data = JSON.parse(fs.readFileSync(path.join(worldDir, file), 'utf8').replace(/^\uFEFF/, ''));
+    return Array.isArray(data) ? data.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * 列出 minecraftWorlds 下的现有世界（跳过 .bak-* 备份与隐藏目录）。
+ * @returns {{name:string, levelName:string, dir:string, lastModified:number, behaviorPacks:number, resourcePacks:number}[]}
+ */
+export function listWorlds() {
+  const base = worldsDir();
+  const out = [];
+  let entries = [];
+  try {
+    entries = fs.readdirSync(base, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (entry.name.startsWith('.') || /\.bak-/.test(entry.name)) continue;
+    const dir = path.join(base, entry.name);
+    const levelDat = path.join(dir, 'level.dat');
+    if (!fs.existsSync(levelDat)) continue;
+    let levelName = entry.name;
+    try {
+      const text = fs.readFileSync(path.join(dir, 'levelname.txt'), 'utf8').trim();
+      if (text !== '') levelName = text;
+    } catch {
+      /* levelname.txt 是可选的 */
+    }
+    let lastModified = 0;
+    try {
+      lastModified = fs.statSync(levelDat).mtimeMs;
+    } catch {
+      /* 时间戳只用于排序 */
+    }
+    out.push({
+      name: entry.name,
+      levelName,
+      dir,
+      lastModified,
+      behaviorPacks: worldPackCount(dir, 'world_behavior_packs.json'),
+      resourcePacks: worldPackCount(dir, 'world_resource_packs.json'),
+    });
+  }
+  out.sort((a, b) => b.lastModified - a.lastModified);
+  return out;
+}
+
+/**
+ * 新建一个世界（绝不覆盖已有世界）。
+ * - 默认从官方 `world_templates` 模板复制；
+ * - 传入 `fromWorld` 时改为复制 minecraftWorlds 下已有的世界（模板缺失时可用）。
+ * @param {string} worldName - 新世界文件夹名。
+ * @param {string} [fromWorld] - 复制来源世界文件夹名。
+ * @returns {{worldDir:string, worldName:string, template:string, copiedFrom?:string}}
+ */
+export function createWorld(worldName, fromWorld) {
+  const name = String(worldName === undefined || worldName === null ? '' : worldName).trim();
+  if (!isValidWorldName(name)) {
+    throw new Error('世界名不合法：不能为空，不能含路径分隔符或特殊字符，最长 64 字符');
+  }
+  const sourceName = String(fromWorld === undefined || fromWorld === null ? '' : fromWorld).trim();
+  if (sourceName !== '' && !isValidWorldName(sourceName)) throw new Error('来源世界名不合法');
+  const worldDir = path.join(worldsDir(), name);
+  if (fs.existsSync(path.join(worldDir, 'level.dat'))) throw new Error(`世界已存在：${name}`);
+  if (fs.existsSync(worldDir)) throw new Error(`目标目录已存在但不是有效世界：${worldDir}`);
+  let source = '';
+  if (sourceName !== '') {
+    const candidate = path.join(worldsDir(), sourceName);
+    if (!fs.existsSync(path.join(candidate, 'level.dat'))) throw new Error(`来源世界不存在或不是有效世界：${sourceName}`);
+    source = candidate;
+  } else {
+    source = findWorldTemplate();
+    if (source === '') {
+      throw new Error('找不到可复制的官方世界模板；可在新建时选择一个已有世界作为复制来源（fromWorld）');
+    }
+  }
+  fs.mkdirSync(worldsDir(), { recursive: true });
+  copyDirRecursive(source, worldDir);
+  try {
+    fs.writeFileSync(path.join(worldDir, 'levelname.txt'), name, 'utf8');
+  } catch {
+    /* levelname.txt 不是必需 */
+  }
+  return sourceName !== ''
+    ? { worldDir, worldName: name, template: source, copiedFrom: sourceName }
+    : { worldDir, worldName: name, template: source };
 }
 
 /**

@@ -1,4 +1,11 @@
-# dsh-mcdev — 实现契约（v0.5：Material 3 面板）
+# dsh-mcdev — 实现契约（v0.6：启动配置）
+
+> **v0.6 变更（启动配置）**：新增「世界 / 行为包 / 资源包 / 皮肤」选择。
+> - 插件自有配置 `<工程>/.mcdev/launch-profile.json`（`world` / `behaviorPacks` / `resourcePacks` / `skin` / `slim` / `skinsDir`），**不修改 `.mcdev.json`**；
+> - 新 action：`worlds` / `packs` / `skins` / `launch-config` / `launch-profile` / `world-create`；`start` 支持一次性覆盖 `world` / `behaviorPacks` / `resourcePacks` / `skin` / `slim`；
+> - native provider：`listWorlds()` / `packCatalog()` / `skins()` / `updateLaunchProfile()` / `createWorld()`；`packCatalog` 汇总工程包与全局包（排除 bridge 包），启动时按白名单**追加**（不删除已有包）；
+> - 面板 full 模式新增第 4 个分段页「配置」；
+> - 新增 `scripts/test-launch-profile.mjs`（8 项）。
 
 > **v0.5 变更（UI）**：面板改为三种**点击切换**的形态，始终只有一个图标、无悬停弹层：
 > `icon`（仅图标）→ 点图标 → `compact`（图标 + 标题/状态 + 启动停止/刷新/重载）→ 点「放大」→ `full`（完整控制台）；

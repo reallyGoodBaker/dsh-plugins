@@ -27,7 +27,7 @@ const SECTION_NAME = 'dsh-mcdev/minecraft'
 const SKILL_NAME = 'minecraft-mod-dev'
 const SERVICE_KEY = 'mcdev'
 /** Code version surfaced by `action: "help"`; bump with `package.json`. */
-const CODE_VERSION = '0.5.6'
+const CODE_VERSION = '0.6.0'
 
 /** Actions shared by the command and the agent tool. */
 const ACTIONS = [
@@ -46,11 +46,17 @@ const ACTIONS = [
   'docs_search',
   'docs_read',
   'config',
+  'worlds',
+  'packs',
+  'skins',
+  'launch-config',
+  'launch-profile',
+  'world-create',
 ]
 
 const ACTION_HELP = [
   'status — 当前状态（进程 / 是否进入存档 / MCP 连接 / 工程目录）',
-  'start [reset] [join] [waitMs] — 启动开发客户端（native 约 17–20s 进存档）；默认等待最多 180s',
+  'start [reset] [join] [waitMs] [world|behaviorPacks|resourcePacks|skin|slim] — 启动开发客户端（native 约 17–20s 进存档）；默认等待最多 180s',
   'stop — 结束本插件启动的游戏（不会结束用户自己启动的进程）',
   'logs [since N] [limit N] [errors] [grep TEXT] — 增量读取日志（官方 Debug_Log + 游戏内 print 回传）',
   'game_logs [errors] [limit N] — 读取游戏内 Python / 引擎日志（官方日志 + print 回传）',
@@ -63,11 +69,18 @@ const ACTION_HELP = [
   'docs_search {query} — 检索内置网易 ModSDK / 官方教程语料',
   'docs_read {path, offset} — 读取一篇文档正文',
   'config [patch] — 读取或合并修改 .mcdev.json（先备份）',
+  'worlds — 列出可选世界与当前生效世界',
+  'packs — 列出可选行为包 / 资源包与当前选择',
+  'skins [skinsDir] — 列出可选皮肤 PNG 与当前皮肤',
+  'launch-config — 一次返回启动配置、世界、包、皮肤清单（面板用）',
+  'launch-profile [patch] — 读取或合并写回插件自有启动配置（不动 .mcdev.json）',
+  'world-create {worldName} — 从官方模板新建世界（不覆盖已有世界）',
 ].join('\n')
 
 const SYSTEM_PROMPT = [
   'Minecraft (网易我的世界) 开发：任务涉及 Mod/Addon、ModSDK、行为包/资源包、.mcdev.json、JSON UI 或真实游戏验证时，使用 `mcdev` 工具。',
   '写 ModSDK 代码前先用 `docs_search` 查官方资料（离线语料含 ModAPI/网易教程/QuMod/SAPI），不要凭记忆猜接口；改完代码用 `reload` + `logs` 验证，日志和错误优先于截图。',
+  '需要换世界/附加包/皮肤时：`worlds`/`packs`/`skins` 看清单，`launch-profile` 保存到插件自有 <project>/.mcdev/launch-profile.json（不改 .mcdev.json），`world-create` 从模板新建世界；之后 `start` 自动沿用。',
   '`start` 可能要 1–3 分钟，`stop` 会结束游戏进程，执行前确认用户意图。',
 ].join('\n')
 
@@ -88,6 +101,15 @@ ${ACTION_HELP}
 5. \`exec\` 在客户端/服务端跑一小段 Python 验证运行时行为（输出用 \`logs\` 看）。
 6. 需要视觉确认时 \`screenshot\`；JSON UI 用 \`jsonui\`；纯结构/接口问题先用 \`docs_search\`。
 7. 全部结束 \`stop\`。
+
+## 启动配置（世界 / 行为包 / 资源包 / 皮肤）
+- \`worlds\` 列出可选世界；\`packs\` 列出行为包/资源包；\`skins\` 列出皮肤 PNG。
+- \`launch-profile\` 读取或合并写回 \`<工程>/.mcdev/launch-profile.json\`（插件自有，不改 \`.mcdev.json\`）：
+  \`{"world":"名字","behaviorPacks":["uuid"...],"resourcePacks":[...],"skin":"C:\\\\s.png","slim":false,"skinsDir":"..."}\`。
+  \`behaviorPacks/resourcePacks\` 为 \`null\` 时沿用工程解析出的全部包；启动时只会**追加**选择的包，不会删除世界里已有的包。
+- \`world-create {"worldName":"名字"}\` 从官方模板新建世界（不覆盖已有世界）。
+- 之后直接 \`start\` 沿用该配置；也可以给 \`start\` 传 \`world/behaviorPacks/resourcePacks/skin/slim\` 做一次性覆盖。
+- 浏览器面板 full 模式的「配置」页提供同样的选择界面。
 
 ## 重要约束
 - ModSDK 运行在 Python 2.7：不要用 f-string、type hints、pathlib、asyncio。
@@ -448,6 +470,56 @@ class McDevService {
 
       const bridge = await this.ensureBridge(projectDir)
 
+      if (action === 'worlds') {
+        return { ok: true, ...(await bridge.listWorlds(projectDir)) }
+      }
+      if (action === 'packs') {
+        return { ok: true, ...(await bridge.packCatalog(projectDir)) }
+      }
+      if (action === 'skins') {
+        const skinsDir = typeof args.skinsDir === 'string' ? args.skinsDir : ''
+        return { ok: true, ...(await bridge.skins(projectDir, skinsDir)) }
+      }
+      if (action === 'world-create') {
+        const worldName = typeof args.worldName === 'string' && args.worldName.trim() !== ''
+          ? args.worldName
+          : typeof args.world === 'string'
+            ? args.world
+            : ''
+        if (worldName.trim() === '') return { ok: false, error: '缺少 worldName：请输入新世界名' }
+        const created = await bridge.createWorld(worldName, typeof args.worldFrom === 'string' ? args.worldFrom : undefined)
+        const worlds = await bridge.listWorlds(projectDir)
+        return { ok: true, created, ...worlds }
+      }
+      if (action === 'launch-profile') {
+        const patch = args.profilePatch !== undefined ? args.profilePatch : args.patch
+        if (patch !== undefined && patch !== null) {
+          const next = await bridge.updateLaunchProfile(patch, projectDir)
+          return { ok: true, ...next }
+        }
+        return { ok: true, ...(await bridge.launchProfile(projectDir)) }
+      }
+      if (action === 'launch-config') {
+        const skinsDir = typeof args.skinsDir === 'string' ? args.skinsDir : ''
+        const profile = await bridge.launchProfile(projectDir)
+        const worlds = await bridge.listWorlds(projectDir)
+        const catalog = await bridge.packCatalog(projectDir)
+        const skins = await bridge.skins(projectDir, skinsDir)
+        return {
+          ok: true,
+          profilePath: profile.path,
+          profile: profile.profile,
+          current: worlds.current,
+          worlds: worlds.worlds,
+          behavior: catalog.behavior,
+          resource: catalog.resource,
+          selected: catalog.selected,
+          warnings: catalog.warnings,
+          skinsDirs: skins.dirs,
+          skins: skins.files,
+        }
+      }
+
       if (action === 'status') {
         const status = await bridge.status()
         return { ok: true, status: { ...status, provider: this.providerName } }
@@ -458,6 +530,11 @@ class McDevService {
           reset: flagOf(args.reset),
           join: args.join === undefined ? true : flagOf(args.join),
           waitMs,
+          world: typeof args.world === 'string' && args.world.trim() !== '' ? args.world.trim() : undefined,
+          behaviorPacks: Array.isArray(args.behaviorPacks) ? args.behaviorPacks.map((item) => String(item)) : undefined,
+          resourcePacks: Array.isArray(args.resourcePacks) ? args.resourcePacks.map((item) => String(item)) : undefined,
+          skin: typeof args.skin === 'string' ? args.skin : undefined,
+          slim: args.slim === undefined ? undefined : flagOf(args.slim),
         })
         return { ok: true, status: { ...status, provider: this.providerName } }
       }
@@ -611,6 +688,50 @@ function renderPayload(action, payload) {
       return asJsonText(payload)
     case 'config':
       return asJsonText(payload.config)
+    case 'worlds': {
+      const worlds = Array.isArray(payload.worlds) ? payload.worlds : []
+      if (worlds.length === 0) return '没有找到现有世界；用 world-create 新建，或先用 MC Studio 创建一次。'
+      const lines = worlds.map((world) => {
+        const current = world.name === payload.current ? '*' : ' '
+        const label = world.levelName !== world.name ? ` · ${world.levelName}` : ''
+        return `${current} ${world.name}${label}  (行为包 ${world.behaviorPacks} / 资源包 ${world.resourcePacks})`
+      })
+      return `世界（* = 当前生效）：\n${lines.join('\n')}\n\n切换：start world=<world 名>，或 launch-profile {"world":"<名字>"}`
+    }
+    case 'packs': {
+      const format = (list, selected) => {
+        const entries = Array.isArray(list) ? list : []
+        if (entries.length === 0) return '（无）'
+        const picked = new Set(Array.isArray(selected) ? selected : [])
+        return entries
+          .map((entry) => `${picked.has(entry.uuid) ? '*' : ' '} ${entry.name || entry.uuid}  [${entry.source}]  ${entry.uuid}`)
+          .join('\n')
+      }
+      const selected = payload.selected || {}
+      return `行为包（* = 启动时附加）：\n${format(payload.behavior, selected.behavior)}\n\n资源包：\n${format(payload.resource, selected.resource)}`
+    }
+    case 'skins': {
+      const files = Array.isArray(payload.files) ? payload.files : []
+      const dirs = Array.isArray(payload.dirs) ? payload.dirs : []
+      const dirLines = dirs.map((item) => `${item.exists ? '' : '(不存在) '}${item.dir}`)
+      const fileLines = files.map((file) => `${file.path}`)
+      return `皮肤目录：\n${dirLines.join('\n') || '（无）'}\n\n可选皮肤 PNG：\n${fileLines.join('\n') || '（无）'}\n\n当前：${payload.profile && payload.profile.skin ? payload.profile.skin : '默认皮肤'}`
+    }
+    case 'launch-profile':
+      return asJsonText({ path: payload.path, profile: payload.profile })
+    case 'launch-config':
+      return asJsonText({
+        profile: payload.profile,
+        current: payload.current,
+        worlds: payload.worlds,
+        selected: payload.selected,
+        skins: payload.skins,
+      })
+    case 'world-create': {
+      const created = payload.created || {}
+      const from = created.copiedFrom !== undefined ? `（复制自 ${created.copiedFrom}）` : ''
+      return `已新建世界：${created.worldName || ''}${from}\n${created.worldDir || ''}`
+    }
     case 'help':
       return `${ACTION_HELP}\n\n可用 action: ${ACTIONS.join(', ')}\n版本: ${payload.version ?? '-'}`
     default:
@@ -658,7 +779,7 @@ export function applyMcdev(ctx, config) {
         description:
           'Drive the NetEase Minecraft (网易我的世界) ModPC dev client: launch/stop it, read logs, execute Python in the game, reload scripts, screenshot, inspect JSON UI, and search the bundled NetEase ModSDK documentation.',
         input: {
-          hint: '[--json] <status|discover|start|stop|logs|exec|reload|screenshot|jsonui|input|docs|read|config|mcp-tools|mcp|help> [options]',
+          hint: '[--json] <status|discover|start|stop|logs|exec|reload|screenshot|jsonui|input|docs|read|config|worlds|packs|skins|launch-config|launch-profile|world-create|help> [options]',
         },
         handler: async (invocation) => {
           const agent = invocation?.agent
@@ -728,6 +849,35 @@ export function applyMcdev(ctx, config) {
               type: 'object',
               description: 'config: partial .mcdev.json merged and written back (a .bak is kept).',
             },
+            world: {
+              type: 'string',
+              description: 'start: world folder name to launch (defaults to the launch profile).',
+            },
+            worldName: {
+              type: 'string',
+              description: 'world-create: name of the new world (created from the official template, never overwrites).',
+            },
+            worldFrom: {
+              type: 'string',
+              description: 'world-create: copy from this existing world folder instead of the official template.',
+            },
+            behaviorPacks: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'start: behavior pack uuids to attach (defaults to the launch profile selection).',
+            },
+            resourcePacks: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'start: resource pack uuids to attach (defaults to the launch profile selection).',
+            },
+            skin: { type: 'string', description: 'start: absolute path of a skin PNG (empty = default skin).' },
+            slim: { type: 'boolean', description: 'start: use the slim (3-pixel) player model.' },
+            skinsDir: { type: 'string', description: 'skins/launch-config: extra directory to scan for skin PNG files.' },
+            profilePatch: {
+              type: 'object',
+              description: 'launch-profile: partial launch profile merged and written back (world/behaviorPacks/resourcePacks/skin/slim/skinsDir).',
+            },
             timeoutMs: { type: 'number', description: 'exec/reload/screenshot/jsonui/input/mcp: operation timeout.' },
           },
           required: ['action'],
@@ -771,6 +921,16 @@ export function applyMcdev(ctx, config) {
       }),
     'dsh-mcdev: skill',
   )
+}
+
+/** Split a comma/space separated pack uuid list; empty text means "no packs". */
+function splitPackList(value) {
+  if (typeof value !== 'string') return undefined
+  const items = value
+    .split(/[,\s]+/)
+    .map((item) => item.trim())
+    .filter((item) => item !== '')
+  return items
 }
 
 /** Translate parsed command options into service arguments. */
@@ -820,6 +980,26 @@ function optionsToArgs(parsed) {
       args.args = options.args
     }
   }
+  // Launch selection: world / packs / skin (also available as --<name>-b64).
+  push('world', typeof options.world === 'string' ? options.world : undefined)
+  if (typeof options['world-name'] === 'string') args.worldName = options['world-name']
+  else if (typeof options.worldName === 'string') args.worldName = options.worldName
+  if (typeof options['world-from'] === 'string') args.worldFrom = options['world-from']
+  else if (typeof options.worldFrom === 'string') args.worldFrom = options.worldFrom
+  const behaviorPacks = splitPackList(options['behavior-packs'] !== undefined ? options['behavior-packs'] : options.behaviorPacks)
+  if (behaviorPacks !== undefined) args.behaviorPacks = behaviorPacks
+  const resourcePacks = splitPackList(options['resource-packs'] !== undefined ? options['resource-packs'] : options.resourcePacks)
+  if (resourcePacks !== undefined) args.resourcePacks = resourcePacks
+  push('skin', typeof options.skin === 'string' ? options.skin : undefined)
+  push('skinsDir', typeof options['skins-dir'] === 'string' ? options['skins-dir'] : undefined)
+  if (options.slim !== undefined) args.slim = flagOf(options.slim)
+  if (typeof options.profile === 'string') {
+    try {
+      args.profilePatch = JSON.parse(options.profile)
+    } catch (error) {
+      args.profilePatch = options.profile
+    }
+  }
   // Generic base64url variants: `--<name>-b64=<base64url>` decodes to `<name>`.
   // The browser panel uses these for Python code and free text so quotes,
   // newlines and backslashes never pass through command-line tokenization.
@@ -839,6 +1019,25 @@ function optionsToArgs(parsed) {
     }
   }
   if (args.cmd !== undefined && args.command === undefined) args.command = args.cmd
+  // Dashed variants decoded by the generic --<name>-b64 loop.
+  if (args['world-name'] !== undefined && args.worldName === undefined) args.worldName = args['world-name']
+  if (args['world-from'] !== undefined && args.worldFrom === undefined) args.worldFrom = args['world-from']
+  if (args['behavior-packs'] !== undefined && args.behaviorPacks === undefined) args.behaviorPacks = splitPackList(args['behavior-packs'])
+  if (args['resource-packs'] !== undefined && args.resourcePacks === undefined) args.resourcePacks = splitPackList(args['resource-packs'])
+  if (args['skins-dir'] !== undefined && args.skinsDir === undefined) args.skinsDir = args['skins-dir']
+  if (typeof args.profile === 'string' && args.profilePatch === undefined) {
+    try {
+      args.profilePatch = JSON.parse(args.profile)
+    } catch (error) {
+      args.profilePatch = args.profile
+    }
+  }
+  delete args['world-name']
+  delete args['world-from']
+  delete args['behavior-packs']
+  delete args['resource-packs']
+  delete args['skins-dir']
+  delete args.profile
   return args
 }
 
@@ -876,6 +1075,22 @@ function commandVerbToAction(verb, positionals, args) {
       return 'stop'
     case 'logs':
       return 'logs'
+    case 'worlds':
+      return 'worlds'
+    case 'packs':
+      return 'packs'
+    case 'skins':
+      if (rest !== '' && args.skinsDir === undefined) args.skinsDir = rest
+      return 'skins'
+    case 'launch-config':
+      return 'launch-config'
+    case 'launch-profile':
+    case 'profile':
+      return 'launch-profile'
+    case 'world-create':
+    case 'new-world':
+      if (rest !== '' && args.worldName === undefined) args.worldName = rest
+      return 'world-create'
     case 'game-logs':
     case 'game_logs':
       return 'game_logs'

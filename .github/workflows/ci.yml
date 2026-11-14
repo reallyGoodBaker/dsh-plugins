@@ -34,7 +34,8 @@ jobs:
             'scripts/test-native-channel.mjs',
             'scripts/test-client-shapes.mjs',
             'scripts/test-locale-parity.mjs',
-            'scripts/test-docs-search.mjs'
+            'scripts/test-docs-search.mjs',
+            'scripts/test-launch-profile.mjs'
           )
           foreach ($script in $scripts) {
             Write-Host "== $script =="

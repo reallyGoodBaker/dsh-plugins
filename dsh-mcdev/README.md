@@ -49,10 +49,36 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
 /mcdev screenshot                # 截图并返回文件路径
 /mcdev docs --query 实体伤害      # 检索官方文档
 /mcdev read --path <文档路径>     # 读文档正文
+/mcdev worlds                    # 列出可选世界与当前生效世界
+/mcdev packs                     # 列出可选行为包 / 资源包与当前选择
+/mcdev skins                     # 列出皮肤 PNG 与当前皮肤
+/mcdev launch-config             # 一次返回启动配置 + 世界/包/皮肤清单（面板用）
+/mcdev launch-profile --profile-b64 <base64 JSON>  # 保存启动配置（插件自有文件）
+/mcdev world-create --world-name-b64 <base64>      # 从模板新建世界（不覆盖已有）
 /mcdev stop
 ```
 
 所有命令加 `--json` 返回纯 JSON，Web 面板即通过 `/mcdev ... --json`（Commands Remote）取数。
+
+### 启动配置（世界 / 行为包 / 资源包 / 皮肤）
+
+- 保存在 **`<工程>/.mcdev/launch-profile.json`**，属于插件自有状态，**不会修改 `.mcdev.json`**：
+
+```json
+{
+  "world": "MC_DEV_WORLD",
+  "behaviorPacks": ["<uuid>", "..."],
+  "resourcePacks": ["<uuid>"],
+  "skin": "C:\\Users\\me\\Pictures\\skins\\hero.png",
+  "slim": false,
+  "skinsDir": "C:\\Users\\me\\Pictures\\skins"
+}
+```
+
+- `world` 为空 = 跟随 `.mcdev.json`；`behaviorPacks`/`resourcePacks` 为 `null` = 工程解析出的全部包；
+- 启动时按选择**追加**包（不删除世界里已有的包）；`skinsDir` 只用于面板枚举 PNG，`skin` 才是实际使用的皮肤路径；
+- `world-create` 从官方 `world_templates` 复制并命名，目标已存在则拒绝；
+- `start` 也可以传一次性覆盖：`/mcdev start --world NAME --behavior-packs u1,u2 --resource-packs u3 --skin <路径> --slim`。
 
 ### Agent 工具 `mcdev`
 
@@ -66,7 +92,7 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
 
 - **icon 模式**：只显示一个 56dp 圆角图标（Minecraft 方块 + 状态点：绿=已进入游戏 / 黄=启动中 / 红=失败），**没有任何弹层/文字**；
 - **compact 模式**：点击图标进入——图标 + 标题 + 状态 + 「放大」按钮，以及启动/停止、刷新、重载三个动作；不展示日志等其余内容；
-- **full 模式**：compact 点「放大」进入——完整 M3 卡片（拖拽条、标题栏、动作行、日志/执行代码/文档三个分段页）；
+- **full 模式**：compact 点「放大」进入——完整 M3 卡片（拖拽条、标题栏、动作行、日志/执行代码/文档/配置四个分段页）；
 - **切换规则**：icon 点图标 → compact；compact 点图标 → icon；compact 点放大 → full；full 点缩小 → compact；full 点图标 → icon；
 - **启动/停止合并为一个按钮**（▶ / ■ / ✕），其余动作全部是带 tooltip 与 aria-label 的图标按钮；
 - 全部颜色/圆角/字体走 M3 token（Minecraft 绿主色、surface-container 系列、state layer、深浅主题 fallback、`prefers-reduced-motion`）；

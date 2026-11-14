@@ -207,6 +207,23 @@ body[data-ds-dark-theme] .mcd-root{
 .mcd-error{margin:0;color:var(--mcd-error);font-size:12px;line-height:1.45;overflow-wrap:anywhere}
 .mcd-meta{color:var(--mcd-on-surface-variant);font-size:11px;white-space:nowrap}
 .mcd-empty{margin:0;padding:8px 0;color:var(--mcd-on-surface-variant);font-size:12px}
+.mcd-form{display:flex;flex-direction:column;gap:10px;flex:1 1 auto;min-height:0;overflow:auto}
+.mcd-config-section{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border-radius:var(--mcd-radius-md);background:var(--mcd-surface-container-high)}
+.mcd-config-head{gap:6px}
+.mcd-section-title{flex:1 1 auto;min-width:0;font-size:12px;font-weight:500;color:var(--mcd-on-surface);overflow-wrap:anywhere}
+.mcd-select{flex:1 1 auto;min-width:0;padding:9px 10px;border:1px solid var(--mcd-outline);border-radius:var(--mcd-radius-md);background:transparent;color:var(--mcd-on-surface);font-family:inherit;font-size:13px}
+.mcd-select:focus{outline:2px solid var(--mcd-primary);outline-offset:-1px}
+.mcd-chip{flex:none;display:inline-flex;align-items:center;max-width:100%;padding:4px 10px;border:1px solid var(--mcd-outline-variant);border-radius:var(--mcd-radius-full);background:transparent;color:var(--mcd-on-surface);font-family:inherit;font-size:11px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (hover:hover){.mcd-chip:hover{background:var(--mcd-hover)}}
+.mcd-chip[data-on=true]{background:var(--mcd-primary-container);color:var(--mcd-on-primary-container);border-color:transparent}
+.mcd-pack-list{display:flex;flex-direction:column;gap:2px;max-height:150px;overflow:auto}
+.mcd-check{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:var(--mcd-radius-sm);cursor:pointer;user-select:none}
+@media (hover:hover){.mcd-check:hover{background:var(--mcd-hover)}}
+.mcd-check input{flex:none;width:16px;height:16px;margin:0;accent-color:var(--mcd-primary)}
+.mcd-check-name{flex:1 1 auto;min-width:0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcd-badge{flex:none;padding:1px 6px;border-radius:var(--mcd-radius-full);background:var(--mcd-surface-container-highest);color:var(--mcd-on-surface-variant);font-size:10px}
+.mcd-skin-list{display:flex;flex-wrap:wrap;gap:4px;max-height:104px;overflow:auto}
+.mcd-config-section .mcd-input{flex:1 1 auto;width:auto;min-width:0}
 .mcd-resize{position:absolute;right:2px;bottom:2px;display:flex;align-items:flex-end;justify-content:flex-end;width:20px;height:20px;padding:0 3px 3px 0;border:0;background:transparent;color:var(--mcd-on-surface-variant);cursor:nwse-resize;touch-action:none;border-radius:0 0 var(--mcd-radius-xl) 0}
 .mcd-resize::after{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;border-bottom-right-radius:2px;opacity:.7}
 .mcd-body::-webkit-scrollbar,.mcd-pre::-webkit-scrollbar,.mcd-hits::-webkit-scrollbar{width:8px;height:8px}
@@ -240,6 +257,38 @@ body[data-ds-dark-theme] .mcd-root{
       collapse: 'Hide console',
       movePanel: 'Move panel (drag or arrow keys)',
       resizePanel: 'Resize panel (drag or arrow keys)',
+      configTab: 'Config',
+      world: 'World',
+      worldDefault: 'Follow .mcdev.json',
+      newWorld: 'New world',
+      newWorldPlaceholder: 'New world name…',
+      create: 'Create',
+      behaviorPacks: 'Behavior packs',
+      resourcePacks: 'Resource packs',
+      skins: 'Skin',
+      skinsDir: 'Skin folder',
+      skinsDirPlaceholder: 'Skin folder to scan (optional)',
+      skinPathPlaceholder: 'Absolute path of a skin PNG',
+      skinDefault: 'Default skin',
+      slim: 'Slim model',
+      selectAll: 'All',
+      clearAll: 'None',
+      save: 'Save',
+      saved: 'Saved',
+      refreshList: 'Reload lists',
+      packSourceProject: 'project',
+      packSourceGlobal: 'global',
+      noPacks: 'No selectable packs',
+      noSkins: 'No skin PNG found',
+      configHint: 'These choices only affect launches from this plugin; .mcdev.json is not modified.',
+      configLoadFailed: 'Could not load the launch config.',
+      configSaved: 'Launch config saved.',
+      createFailed: 'Could not create the world.',
+      saveFailed: 'Could not save the launch config.',
+      worldCreated: 'World created: {name}',
+      worldSource: 'Copy from',
+      worldSourceTemplate: 'Official template',
+      worldSourceClone: 'Copy of',
       logs: 'Logs',
       exec: 'Run code',
       docs: 'Docs',
@@ -304,6 +353,38 @@ body[data-ds-dark-theme] .mcd-root{
       collapse: '收起控制台',
       movePanel: '移动面板（拖拽或方向键）',
       resizePanel: '调整面板大小（拖拽或方向键）',
+      configTab: '配置',
+      world: '世界',
+      worldDefault: '跟随 .mcdev.json',
+      newWorld: '新建世界',
+      newWorldPlaceholder: '新世界名…',
+      create: '新建',
+      behaviorPacks: '行为包',
+      resourcePacks: '资源包',
+      skins: '皮肤',
+      skinsDir: '皮肤目录',
+      skinsDirPlaceholder: '要扫描的皮肤目录（可选）',
+      skinPathPlaceholder: '皮肤 PNG 的绝对路径',
+      skinDefault: '默认皮肤',
+      slim: '纤细模型',
+      selectAll: '全选',
+      clearAll: '清空',
+      save: '保存',
+      saved: '已保存',
+      refreshList: '刷新清单',
+      packSourceProject: '工程',
+      packSourceGlobal: '全局',
+      noPacks: '没有找到可选的包',
+      noSkins: '没有找到皮肤 PNG',
+      configHint: '这些选择只影响本插件的启动，不会修改 .mcdev.json。',
+      configLoadFailed: '读取启动配置失败。',
+      configSaved: '启动配置已保存。',
+      createFailed: '新建世界失败。',
+      saveFailed: '保存启动配置失败。',
+      worldCreated: '已新建世界：{name}',
+      worldSource: '复制来源',
+      worldSourceTemplate: '官方模板',
+      worldSourceClone: '复制自',
       logs: '日志',
       exec: '执行代码',
       docs: '文档检索',
@@ -719,6 +800,26 @@ body[data-ds-dark-theme] .mcd-root{
         },
         exec: { code: '', side: 'client', text: '', ran: false, error: undefined, gameLines: [] },
         docs: { query: '', hits: [], searched: false, path: undefined, title: '', text: '', total: 0, more: false, error: undefined },
+        launch: {
+          profilePath: '',
+          profile: undefined,
+          worlds: [],
+          behavior: [],
+          resource: [],
+          behaviorSelected: [],
+          resourceSelected: [],
+          skins: [],
+          skinsDirs: [],
+          skinsDir: '',
+          world: '',
+          skin: '',
+          slim: false,
+          newWorld: '',
+          worldFrom: '',
+          busy: false,
+          savedAt: undefined,
+          error: undefined,
+        },
       };
     }
 
@@ -821,6 +922,9 @@ body[data-ds-dark-theme] .mcd-root{
       expand: 'M12 8 6 14h12z',
       newer: 'M11 4h2v9h4l-5 5-5-5h4V4ZM5 19h14v2H5v-2Z',
       filter: 'M10 18h4v-2h-4v2ZM3 6v2h18V6H3Zm3 7h12v-2H6v2Z',
+      tune: 'M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z',
+      add: 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z',
+      check: 'M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z',
       copy: 'M16 1H4a2 2 0 0 0-2 2v14h2V3h12zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11z',
       search:
         'M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5Zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14Z',
@@ -1457,10 +1561,156 @@ body[data-ds-dark-theme] .mcd-root{
         }
       };
 
+      // ---------------------------------------------------------------------
+      // 启动配置（世界 / 行为包 / 资源包 / 皮肤）
+      // ---------------------------------------------------------------------
+
+      /** Read the plugin-owned launch profile plus the selectable worlds/packs/skins. */
+      const loadLaunchConfig = async (sid, skinsDir) => {
+        if (sid === undefined || sid === null || !remoteReady(remoteRef.current)) return;
+        const key = sid + '|launch-config';
+        if (loads.has(key)) {
+          await loads.get(key);
+          return;
+        }
+        const task = (async () => {
+          commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: true, error: undefined } }));
+          try {
+            const suffix = typeof skinsDir === 'string' && skinsDir.trim() !== ''
+              ? ' --skins-dir-b64=' + encodeArg(skinsDir.trim())
+              : '';
+            const result = await runCommand(sid, '/mcdev launch-config' + suffix + ' --json');
+            const data = result.data;
+            if (result.kind === 'error' || data === undefined || data.ok === false) {
+              const message = data !== undefined && typeof data.error === 'string' && data.error !== ''
+                ? data.error
+                : messageOf(result, translate(t, 'configLoadFailed'));
+              commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: false, error: message } }));
+              return;
+            }
+            const profile = data.profile !== null && typeof data.profile === 'object' ? data.profile : {};
+            const selected = data.selected !== null && typeof data.selected === 'object' ? data.selected : {};
+            const behavior = Array.isArray(data.behavior) ? data.behavior : [];
+            const resource = Array.isArray(data.resource) ? data.resource : [];
+            const behaviorSelected = Array.isArray(selected.behavior) ? selected.behavior : [];
+            const resourceSelected = Array.isArray(selected.resource) ? selected.resource : [];
+            const current = typeof data.current === 'string' ? data.current : '';
+            const skins = Array.isArray(data.skins) ? data.skins : [];
+            const dirs = Array.isArray(data.skinsDirs) ? data.skinsDirs : [];
+            const skinsDirValue = dirs.length > 0 && dirs[0].exists === false ? '' : (dirs.length > 0 ? dirs[0].dir : '');
+            commit(sid, (snapshot) => ({
+              ...snapshot,
+              launch: {
+                profilePath: typeof data.profilePath === 'string' ? data.profilePath : '',
+                profile,
+                worlds: Array.isArray(data.worlds) ? data.worlds : [],
+                behavior,
+                resource,
+                behaviorSelected,
+                resourceSelected,
+                skins,
+                skinsDirs: dirs,
+                skinsDir: typeof profile.skinsDir === 'string' && profile.skinsDir !== '' ? profile.skinsDir : skinsDirValue,
+                world: typeof profile.world === 'string' && profile.world !== '' ? profile.world : current,
+                skin: typeof profile.skin === 'string' ? profile.skin : '',
+                slim: profile.slim === true,
+                newWorld: snapshot.launch.newWorld,
+                worldFrom: snapshot.launch.worldFrom,
+                busy: false,
+                savedAt: snapshot.launch.savedAt,
+                error: undefined,
+              },
+            }));
+          } catch (caught) {
+            const message = caught !== null && caught !== undefined && typeof caught.message === 'string' ? caught.message : '';
+            commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: false, error: message !== '' ? message : translate(t, 'configLoadFailed') } }));
+          } finally {
+            loads.delete(key);
+          }
+        })();
+        loads.set(key, task);
+        await task;
+      };
+
+      /** Merge one launch profile patch and refresh the form from the saved value. */
+      const saveLaunchProfile = async (patch) => {
+        const sid = sessionId;
+        if (sid === undefined || sid === null || !remoteReady(remoteRef.current)) return;
+        commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: true, error: undefined } }));
+        try {
+          const result = await runCommand(sid, '/mcdev launch-profile --profile-b64=' + encodeArg(JSON.stringify(patch)) + ' --json');
+          const data = result.data;
+          if (result.kind === 'error' || data === undefined || data.ok === false) {
+            const message = data !== undefined && typeof data.error === 'string' && data.error !== ''
+              ? data.error
+              : messageOf(result, translate(t, 'saveFailed'));
+            commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: false, error: message } }));
+            return;
+          }
+          const profile = data.profile !== null && typeof data.profile === 'object' ? data.profile : {};
+          commit(sid, (current) => ({
+            ...current,
+            launch: {
+              ...current.launch,
+              profile,
+              world: typeof profile.world === 'string' && profile.world !== '' ? profile.world : current.launch.world,
+              skin: typeof profile.skin === 'string' ? profile.skin : '',
+              slim: profile.slim === true,
+              skinsDir: typeof profile.skinsDir === 'string' ? profile.skinsDir : current.launch.skinsDir,
+              busy: false,
+              savedAt: Date.now(),
+              error: undefined,
+            },
+          }));
+          flashNote(translate(t, 'configSaved'));
+        } finally {
+          commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: false } }));
+        }
+      };
+
+      /** Create a world from the official template (or copy an existing world), then select it. */
+      const createLaunchWorld = async (worldName, worldFrom) => {
+        const sid = sessionId;
+        const name = typeof worldName === 'string' ? worldName.trim() : '';
+        if (sid === undefined || sid === null || !remoteReady(remoteRef.current) || name === '') return;
+        commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: true, error: undefined } }));
+        try {
+          const fromSuffix = typeof worldFrom === 'string' && worldFrom.trim() !== ''
+            ? ' --world-from-b64=' + encodeArg(worldFrom.trim())
+            : '';
+          const result = await runCommand(sid, '/mcdev world-create --world-name-b64=' + encodeArg(name) + fromSuffix + ' --json');
+          const data = result.data;
+          if (result.kind === 'error' || data === undefined || data.ok === false) {
+            const message = data !== undefined && typeof data.error === 'string' && data.error !== ''
+              ? data.error
+              : messageOf(result, translate(t, 'createFailed'));
+            commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: false, error: message } }));
+            return;
+          }
+          flashNote(translate(t, 'worldCreated', { name }));
+          commit(sid, (current) => ({
+            ...current,
+            launch: { ...current.launch, newWorld: '', world: name, busy: false, savedAt: Date.now() },
+          }));
+          // Persist the new world as the selected one.
+          await saveLaunchProfile({ world: name });
+          await loadLaunchConfig(sid);
+        } finally {
+          commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: false } }));
+        }
+      };
+
+      // Entering the config tab loads worlds/packs/skins once per session.
+      React.useEffect(() => {
+        if (mode !== 'full' || tab !== 'config') return undefined;
+        void loadLaunchConfig(sessionId);
+        return undefined;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [mode, tab, sessionId]);
+
       /** Force one status read (the only path that repeats it for the same session). */
       const refreshStatus = async () => {
         if (actionRef.current !== undefined) return;
-        actionRef.current = 'refresh';
         setError(undefined);
         setNote(undefined);
         setAction('refresh');
@@ -1696,6 +1946,7 @@ body[data-ds-dark-theme] .mcd-root{
         { id: 'logs', label: 'logs', icon: 'console' },
         { id: 'exec', label: 'exec', icon: 'terminal' },
         { id: 'docs', label: 'docs', icon: 'book' },
+        { id: 'config', label: 'configTab', icon: 'tune' },
       ];
 
       /** Arrow-key navigation across the tab list. */
@@ -2147,6 +2398,258 @@ body[data-ds-dark-theme] .mcd-root{
                 docs.more ? h('p', { className: 'mcd-hint' }, translate(t, 'docTruncated')) : null,
               )
             : null,
+        );
+      } else if (expanded && tab === 'config') {
+        const launch = view.launch;
+        const selectedBehavior = new Set(launch.behaviorSelected);
+        const selectedResource = new Set(launch.resourceSelected);
+        const commitLaunch = (patch) => {
+          commit(sessionId, (current) => ({ ...current, launch: { ...current.launch, ...patch, savedAt: undefined } }));
+        };
+        const togglePack = (kind, uuid, checked) => {
+          const key = kind === 'behavior' ? 'behaviorSelected' : 'resourceSelected';
+          const next = new Set(launch[key]);
+          if (checked) next.add(uuid);
+          else next.delete(uuid);
+          commitLaunch({ [key]: Array.from(next) });
+        };
+        const setAllPacks = (kind, entries, checked) => {
+          const key = kind === 'behavior' ? 'behaviorSelected' : 'resourceSelected';
+          const all = Array.isArray(entries) ? entries.map((entry) => entry.uuid) : [];
+          commitLaunch({ [key]: checked ? all : [] });
+        };
+        const packSection = (kind, entries, selectedSet, titleKey) => {
+          const list = Array.isArray(entries) ? entries : [];
+          return h(
+            'div',
+            { className: 'mcd-config-section', key: 'section-' + kind },
+            h(
+              'div',
+              { className: 'mcd-row mcd-config-head' },
+              h('span', { className: 'mcd-section-title' }, translate(t, titleKey) + ' · ' + selectedSet.size),
+              h(
+                'button',
+                { type: 'button', className: 'mcd-chip', onClick: () => setAllPacks(kind, list, true) },
+                translate(t, 'selectAll'),
+              ),
+              h(
+                'button',
+                { type: 'button', className: 'mcd-chip', onClick: () => setAllPacks(kind, list, false) },
+                translate(t, 'clearAll'),
+              ),
+            ),
+            list.length === 0
+              ? h('p', { className: 'mcd-empty' }, translate(t, 'noPacks'))
+              : h(
+                  'div',
+                  { className: 'mcd-pack-list' },
+                  list.map((entry) =>
+                    h(
+                      'label',
+                      { className: 'mcd-check', key: entry.uuid, title: typeof entry.dir === 'string' ? entry.dir : entry.uuid },
+                      h('input', {
+                        type: 'checkbox',
+                        checked: selectedSet.has(entry.uuid),
+                        onChange: (event) => togglePack(kind, entry.uuid, event.target.checked),
+                      }),
+                      h('span', { className: 'mcd-check-name' }, typeof entry.name === 'string' && entry.name !== '' ? entry.name : entry.uuid),
+                      h('span', { className: 'mcd-badge' }, translate(t, entry.source === 'project' ? 'packSourceProject' : 'packSourceGlobal')),
+                    ),
+                  ),
+                ),
+          );
+        };
+        const worlds = Array.isArray(launch.worlds) ? launch.worlds : [];
+        const skinsList = Array.isArray(launch.skins) ? launch.skins : [];
+        content = h(
+          'div',
+          { className: 'mcd-panel', role: 'tabpanel', key: 'panel-config' },
+          launch.error !== undefined && launch.error !== '' ? h('p', { className: 'mcd-error', key: 'config-error', role: 'alert' }, launch.error) : null,
+          h(
+            'div',
+            { className: 'mcd-form', key: 'config-form' },
+            h(
+              'div',
+              { className: 'mcd-config-section', key: 'section-world' },
+              h(
+                'div',
+                { className: 'mcd-row mcd-config-head' },
+                h('span', { className: 'mcd-section-title' }, translate(t, 'world')),
+                h(IconButton, {
+                  key: 'reload-config',
+                  icon: 'refresh',
+                  label: translate(t, 'refreshList'),
+                  busy: launch.busy,
+                  disabled: launch.busy,
+                  onClick: () => void loadLaunchConfig(sessionId, launch.skinsDir),
+                }),
+              ),
+              h(
+                'div',
+                { className: 'mcd-row' },
+                h(
+                  'select',
+                  {
+                    className: 'mcd-select',
+                    'aria-label': translate(t, 'world'),
+                    value: typeof launch.world === 'string' ? launch.world : '',
+                    onChange: (event) => commitLaunch({ world: event.target.value }),
+                  },
+                  h('option', { key: 'world-default', value: '' }, translate(t, 'worldDefault')),
+                  worlds.map((world) => {
+                    const name = typeof world.name === 'string' ? world.name : '';
+                    const levelName = typeof world.levelName === 'string' && world.levelName !== name ? ' · ' + world.levelName : '';
+                    return h(
+                      'option',
+                      { key: name, value: name },
+                      name + levelName + '  (' + world.behaviorPacks + '/' + world.resourcePacks + ')',
+                    );
+                  }),
+                ),
+              ),
+              h(
+                'div',
+                { className: 'mcd-row' },
+                h('input', {
+                  className: 'mcd-input',
+                  value: typeof launch.newWorld === 'string' ? launch.newWorld : '',
+                  placeholder: translate(t, 'newWorldPlaceholder'),
+                  'aria-label': translate(t, 'newWorld'),
+                  onChange: (event) => commitLaunch({ newWorld: event.target.value }),
+                  onKeyDown: (event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      void createLaunchWorld(view.launch.newWorld, view.launch.worldFrom);
+                    }
+                  },
+                }),
+                h(IconButton, {
+                  key: 'create-world',
+                  icon: 'add',
+                  label: translate(t, 'create'),
+                  disabled: launch.busy || (typeof launch.newWorld === 'string' && launch.newWorld.trim() !== '') === false,
+                  onClick: () => void createLaunchWorld(view.launch.newWorld, view.launch.worldFrom),
+                }),
+              ),
+              h(
+                'div',
+                { className: 'mcd-row' },
+                h(
+                  'select',
+                  {
+                    className: 'mcd-select',
+                    'aria-label': translate(t, 'worldSource'),
+                    value: typeof launch.worldFrom === 'string' ? launch.worldFrom : '',
+                    onChange: (event) => commitLaunch({ worldFrom: event.target.value }),
+                  },
+                  h('option', { key: 'source-template', value: '' }, translate(t, 'worldSourceTemplate')),
+                  worlds
+                    .filter((world) => typeof world.name === 'string')
+                    .map((world) => h('option', { key: 'source-' + world.name, value: world.name }, translate(t, 'worldSourceClone') + ' ' + world.name)),
+                ),
+              ),
+            ),
+            packSection('behavior', launch.behavior, selectedBehavior, 'behaviorPacks'),
+            packSection('resource', launch.resource, selectedResource, 'resourcePacks'),
+            h(
+              'div',
+              { className: 'mcd-config-section', key: 'section-skin' },
+              h(
+                'div',
+                { className: 'mcd-row mcd-config-head' },
+                h('span', { className: 'mcd-section-title' }, translate(t, 'skins')),
+                h(IconButton, {
+                  key: 'reload-skins',
+                  icon: 'refresh',
+                  label: translate(t, 'refreshList'),
+                  busy: launch.busy,
+                  disabled: launch.busy,
+                  onClick: () => void loadLaunchConfig(sessionId, launch.skinsDir),
+                }),
+              ),
+              h(
+                'div',
+                { className: 'mcd-row' },
+                h('input', {
+                  className: 'mcd-input',
+                  value: typeof launch.skin === 'string' ? launch.skin : '',
+                  placeholder: translate(t, 'skinPathPlaceholder'),
+                  'aria-label': translate(t, 'skins'),
+                  onChange: (event) => commitLaunch({ skin: event.target.value }),
+                }),
+                h(IconButton, {
+                  key: 'skin-default',
+                  icon: 'close',
+                  label: translate(t, 'skinDefault'),
+                  onClick: () => commitLaunch({ skin: '' }),
+                }),
+              ),
+              h(
+                'div',
+                { className: 'mcd-row' },
+                h('input', {
+                  className: 'mcd-input',
+                  value: typeof launch.skinsDir === 'string' ? launch.skinsDir : '',
+                  placeholder: translate(t, 'skinsDirPlaceholder'),
+                  'aria-label': translate(t, 'skinsDir'),
+                  onChange: (event) => commitLaunch({ skinsDir: event.target.value }),
+                }),
+              ),
+              skinsList.length === 0
+                ? h('p', { className: 'mcd-empty' }, translate(t, 'noSkins'))
+                : h(
+                    'div',
+                    { className: 'mcd-skin-list', key: 'skins' },
+                    skinsList.map((file) =>
+                      h(
+                        'button',
+                        {
+                          type: 'button',
+                          key: file.path,
+                          className: 'mcd-chip',
+                          'data-on': launch.skin === file.path ? 'true' : 'false',
+                          title: file.path,
+                          onClick: () => commitLaunch({ skin: file.path }),
+                        },
+                        file.name,
+                      ),
+                    ),
+                  ),
+              h(
+                'label',
+                { className: 'mcd-check', key: 'slim' },
+                h('input', {
+                  type: 'checkbox',
+                  checked: launch.slim === true,
+                  onChange: (event) => commitLaunch({ slim: event.target.checked }),
+                }),
+                h('span', { className: 'mcd-check-name' }, translate(t, 'slim')),
+              ),
+            ),
+            h('p', { className: 'mcd-hint', key: 'config-hint' }, translate(t, 'configHint')),
+            h(
+              'div',
+              { className: 'mcd-row', key: 'save-row' },
+              h(IconButton, {
+                key: 'save',
+                icon: 'check',
+                variant: 'filled',
+                label: translate(t, 'save'),
+                busy: launch.busy,
+                disabled: launch.busy,
+                onClick: () =>
+                  void saveLaunchProfile({
+                    world: launch.world,
+                    behaviorPacks: launch.behaviorSelected,
+                    resourcePacks: launch.resourceSelected,
+                    skin: launch.skin,
+                    slim: launch.slim,
+                    skinsDir: launch.skinsDir,
+                  }),
+              }),
+              h('span', { className: 'mcd-meta' }, launch.savedAt !== undefined ? translate(t, 'saved') : ''),
+            ),
+          ),
         );
       }
 

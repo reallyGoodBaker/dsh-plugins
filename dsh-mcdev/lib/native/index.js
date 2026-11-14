@@ -23,7 +23,6 @@ import {
   BRIDGE_PACK_UUID,
   behaviorPacksDir,
   bridgePackDir,
-  collectProjectPacks,
   ensureWorldPackList,
   installBridgePack,
   officialLogsDir,
@@ -33,8 +32,11 @@ import {
   DEFAULT_WORLD_NAME,
   acquireWorldLock,
   cppconfigPathOf,
+  createWorld,
   discoverGame,
   ensureDevWorld,
+  isValidWorldName,
+  listWorlds,
   releaseWorldLock,
   resetDevWorld,
   spawnGame,
@@ -42,6 +44,16 @@ import {
   worldDirOf,
   writeDevConfig,
 } from './launcher.js';
+import {
+  launchProfilePath,
+  packCatalog,
+  readLaunchProfile,
+  resolveSelectedPacks,
+  skinDirsOf,
+  skinFiles,
+  worldNameOf,
+  writeLaunchProfile,
+} from './launchProfile.js';
 
 const DEFAULT_START_TIMEOUT_MS = 180000;
 const DEFAULT_LOG_LIMIT = 2000;
@@ -195,6 +207,69 @@ export class NativeProvider {
     return config;
   }
 
+  // ---------------------------------------------------------------------------
+  // 启动配置（插件自有的世界 / 行为包 / 资源包 / 皮肤选择）
+  // ---------------------------------------------------------------------------
+
+  /** 读取启动配置。 */
+  launchProfile(projectDir) {
+    const dir = path.resolve(projectDir || this.projectDir);
+    return { path: launchProfilePath(dir), profile: readLaunchProfile(dir) };
+  }
+
+  /** 合并写回启动配置（不修改 .mcdev.json）。 */
+  updateLaunchProfile(patch, projectDir) {
+    if (!isPlainObject(patch)) throw new Error('updateLaunchProfile(patch) 需要一个普通对象');
+    const dir = path.resolve(projectDir || this.projectDir);
+    const { path: profilePath, profile } = writeLaunchProfile(dir, patch);
+    return { path: profilePath, profile };
+  }
+
+  /** 列出可选世界 + 当前生效世界。 */
+  listWorlds(projectDir) {
+    const dir = path.resolve(projectDir || this.projectDir);
+    const config = this.readConfig(dir);
+    const profile = readLaunchProfile(dir);
+    return { worlds: listWorlds(), current: worldNameOf(config, profile), profile };
+  }
+
+  /** 列出可选行为包/资源包 + 当前选择。 */
+  packCatalog(projectDir) {
+    const dir = path.resolve(projectDir || this.projectDir);
+    const config = this.readConfig(dir);
+    const profile = readLaunchProfile(dir);
+    const catalog = packCatalog(dir, config);
+    const selected = resolveSelectedPacks(catalog, {
+      behaviorPacks: profile.behaviorPacks,
+      resourcePacks: profile.resourcePacks,
+    });
+    return {
+      ...catalog,
+      profile,
+      selected: {
+        behavior: selected.behavior.map((item) => item.uuid),
+        resource: selected.resource.map((item) => item.uuid),
+        missing: selected.missing,
+      },
+    };
+  }
+
+  /** 列出可选皮肤 PNG（可选 dirs 覆盖：面板传入的皮肤目录）。 */
+  skins(projectDir, skinsDir) {
+    const dir = path.resolve(projectDir || this.projectDir);
+    const profile = readLaunchProfile(dir);
+    const withDir = typeof skinsDir === 'string' && skinsDir.trim() !== ''
+      ? { ...profile, skinsDir: skinsDir.trim() }
+      : profile;
+    return { profile, ...skinFiles(dir, withDir) };
+  }
+
+  /** 新建世界：默认从官方模板复制；fromWorld 可指定复制来源世界。 */
+  createWorld(worldName, fromWorld) {
+    if (!isValidWorldName(worldName)) throw new Error('世界名不合法：不能为空，不能含路径分隔符或特殊字符，最长 64 字符');
+    return createWorld(worldName, fromWorld);
+  }
+
   /** 发现游戏 exe / 版本 / 开发世界 / bridge 包状态。 */
   discover(projectDir) {
     const dir = path.resolve(projectDir || this.projectDir);
@@ -207,8 +282,9 @@ export class NativeProvider {
     }
     const configSafe = config || {};
     const game = discoverGame(configSafe);
-    const worldName = String(configSafe.world_folder_name || configSafe.world_name || DEFAULT_WORLD_NAME);
-    const worldDir = worldDirOf(dir, configSafe);
+    const profile = readLaunchProfile(dir);
+    const effectiveWorld = worldNameOf(configSafe, profile);
+    const worldDir = worldDirOf(dir, { ...configSafe, world_folder_name: effectiveWorld });
     const packDir = bridgePackDir();
     const result = {
       provider: PROVIDER_NAME,
@@ -217,8 +293,14 @@ export class NativeProvider {
       gameExe: game.exe,
       gameVersion: game.version,
       versions: game.versions,
+      launch: {
+        path: launchProfilePath(dir),
+        profile,
+        world: effectiveWorld,
+        worlds: listWorlds().length,
+      },
       world: {
-        name: worldName,
+        name: effectiveWorld,
         dir: worldDir,
         exists: fs.existsSync(path.join(worldDir, 'level.dat')),
         devConfigPath: cppconfigPathOf(worldDir),
@@ -330,11 +412,27 @@ export class NativeProvider {
     }
     this._gameExe = game.exe;
     this._gameVersion = game.version || '';
-    this._worldName = String(config.world_folder_name || config.world_name || DEFAULT_WORLD_NAME);
+
+    // 启动配置（插件自有）：世界 / 行为包 / 资源包 / 皮肤，可被本次 start 参数覆盖。
+    const profile = readLaunchProfile(dir);
+    const worldName = worldNameOf(config, {
+      world: typeof options.world === 'string' && options.world.trim() !== '' ? options.world : profile.world,
+    });
+    const skinInfo = config.skin_info && typeof config.skin_info === 'object' ? config.skin_info : {};
+    const launchConfig = {
+      ...config,
+      world_folder_name: worldName,
+      world_name: worldName,
+      skin_info: {
+        skin: options.skin !== undefined ? String(options.skin) : String(profile.skin || skinInfo.skin || ''),
+        slim: options.slim !== undefined ? options.slim === true : profile.slim === true ? true : Boolean(skinInfo.slim),
+      },
+    };
+    this._worldName = worldName;
 
     // 0) 世界级互斥锁：同一开发世界只允许一个 native provider 会话（并发会破坏世界 DB，实测会崩）
     if (!this._worldLock) {
-      const worldDirForLock = worldDirOf(dir, config);
+      const worldDirForLock = worldDirOf(dir, launchConfig);
       try {
         this._worldLock = acquireWorldLock(worldDirForLock, { projectDir: dir });
       } catch (error) {
@@ -348,22 +446,23 @@ export class NativeProvider {
 
     let worldInfo;
     let devConfig;
-    let projectPacks;
+    let selectedPacks;
     try {
       // 1) reset（可选）
       if (options.reset === true) {
-        const resetResult = resetDevWorld(dir, config);
+        const resetResult = resetDevWorld(dir, launchConfig);
         this._notes.push(resetResult.reset
           ? `[dsh] 已重建开发世界：${resetResult.worldDir}（旧世界备份：${resetResult.backupDir}）`
           : `[dsh] reset 未执行：${resetResult.reason}`);
       }
 
       // 2) 确保开发世界 + 写 dev_config.cppconfig
-      worldInfo = ensureDevWorld(dir, config);
+      worldInfo = ensureDevWorld(dir, launchConfig);
       this._worldDir = worldInfo.worldDir;
       if (worldInfo.created) this._notes.push(`[dsh] 已从模板创建开发世界：${worldInfo.worldDir}`);
-      devConfig = writeDevConfig(worldInfo.worldDir, config);
+      devConfig = writeDevConfig(worldInfo.worldDir, launchConfig);
       this._notes.push(`[dsh] dev_config.cppconfig 已写入：${devConfig.path}`);
+      if (launchConfig.skin_info.skin !== '') this._notes.push(`[dsh] 皮肤：${launchConfig.skin_info.skin}（slim=${launchConfig.skin_info.slim}）`);
 
       // 2.5) 外部实例检查：世界锁只约束本插件，外部客户端（MC Studio / 手动开的 ModPC）不检查它。
       // 同一开发世界被另一个客户端打开时断开启动，避免并发写坏世界 DB。
@@ -375,9 +474,19 @@ export class NativeProvider {
         );
       }
 
-      // 3) 工程包 uuid + 行为包清单
-      projectPacks = collectProjectPacks(dir, config);
-      for (const warning of projectPacks.warnings) this._notes.push(`[dsh] warning: ${warning}`);
+      // 3) 可选包清单：启动配置的白名单（null = 工程全部），解析成实际要附加的 uuid。
+      const catalog = packCatalog(dir, launchConfig);
+      selectedPacks = resolveSelectedPacks(catalog, {
+        behaviorPacks: options.behaviorPacks !== undefined ? options.behaviorPacks : profile.behaviorPacks,
+        resourcePacks: options.resourcePacks !== undefined ? options.resourcePacks : profile.resourcePacks,
+      });
+      for (const missing of selectedPacks.missing) {
+        this._notes.push(`[dsh] warning: 选择的包不存在，已忽略 uuid=${missing}`);
+      }
+      this._notes.push(
+        `[dsh] 附加包：行为包 ${selectedPacks.behavior.length} 个 / 资源包 ${selectedPacks.resource.length} 个`,
+      );
+      for (const warning of catalog.warnings) this._notes.push(`[dsh] warning: ${warning}`);
     } catch (error) {
       this._releaseWorldLock();
       this._phase = 'failed';
@@ -414,8 +523,8 @@ export class NativeProvider {
       this._bridgePack = pack;
       this._logFollower.note(`bridge 行为包已安装：${pack.dir}（port=${pack.port}）`);
       const packLists = ensureWorldPackList(worldInfo.worldDir, {
-        behavior: projectPacks.behavior,
-        resource: projectPacks.resource,
+        behavior: selectedPacks.behavior,
+        resource: selectedPacks.resource,
       });
       for (const warning of packLists.warnings) this._logFollower.note(`warning: ${warning}`);
       this._logFollower.note(
