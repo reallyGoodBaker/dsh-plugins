@@ -1,4 +1,13 @@
-# dsh-mcdev — 实现契约（v0.8.4：按官方 M3 token 对齐组件）
+# dsh-mcdev — 实现契约（v0.8.5：M3 search bar / 修正文档检索输入框）
+
+> **v0.8.5 变更（UI）**：修正文档检索搜索框，按 M3 **Docked search bar** 规范重做：
+> - 56dp 高、corner-full（28dp）胶囊容器、surface-container-high 背景；
+> - 左侧 leading search 图标 24dp、输入正文 Body L 16/24、占位符 on-surface-variant；
+> - 右侧 trailing 图标按钮（40dp 圆形 state layer）执行检索，Enter 等效；
+> - 聚焦时容器变为 surface-container-highest + elevation level 1（state layer），不再出现旧版 `outline 2px` 方框/绿色角标；
+> - Python 执行编辑器改为 M3 **filled multiline text field**（56dp 起、4/4/0/0 圆角、底部 1dp 指示条、聚焦 2dp primary、surface-container-highest 容器、等宽字体）；
+> - 顺带修正设置页包清单标题（行为包/资源包）与按钮重叠：包清单使用静态 section 标题，不再套用浮动字段标签。
+> - 仅 Client 改动，Host 接口不变。
 
 > **v0.8.4 变更（UI，binding）**：不再凭印象实现 M3，改为**以官方规范与官方 token 值为准**：
 > - 参考文档：<https://m3.material.io/>（组件 specs / color roles / typescale / shape / motion）；

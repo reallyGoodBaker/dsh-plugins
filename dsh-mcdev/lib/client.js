@@ -551,6 +551,23 @@ body[data-ds-dark-theme] .mcd-root{
 .mcd-seg-btn svg,.mcd-seg .mcd-icon-btn svg{width:18px;height:18px;fill:currentColor;pointer-events:none}
 .mcd-seg-btn[data-on=true]{background:var(--mcd-secondary-container);color:var(--mcd-on-secondary-container)}
 .mcd-seg-btn:disabled{opacity:.38;cursor:not-allowed}
+/* M3 docked search bar: 56dp pill, surface-container-high, leading search icon,
+   body-large input; focused surface becomes container-highest (state layer). */
+.mcd-search-bar{display:flex;align-items:center;gap:4px;flex:0 0 auto;width:100%;align-self:stretch;height:56px;padding:0 8px 0 16px;border-radius:28px;background:var(--mcd-surface-container-high);transition:background-color var(--mcd-dur-short4) var(--mcd-ease-standard),box-shadow var(--mcd-dur-short4) var(--mcd-ease-standard)}
+.mcd-search-bar > svg{flex:none;width:24px;height:24px;fill:var(--mcd-on-surface-variant)}
+.mcd-search-bar:focus-within{background:var(--mcd-surface-container-highest);box-shadow:var(--mcd-elev-1)}
+.mcd-search-input{flex:1 1 auto;min-width:0;border:0;border-radius:0;background:transparent;padding:0 4px;color:var(--mcd-on-surface);font-family:inherit;font-size:16px;line-height:24px;letter-spacing:.5px;outline:none;appearance:none;-webkit-appearance:none}
+.mcd-search-input::placeholder{color:var(--mcd-on-surface-variant);opacity:1}
+.mcd-search-input:focus,.mcd-search-input:focus-visible{outline:none;box-shadow:none}
+.mcd-search-input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+/* static section header (pack lists): the label is not a floating field label */
+.mcd-field-static{padding-top:0;gap:6px}
+.mcd-field-static .mcd-field-label{position:static;display:block;padding:0;margin:0;background:transparent;transform:none;font-size:12px;line-height:16px}
+/* M3 filled multiline text field for the Python editor */
+.mcd-code{width:100%;min-height:140px;padding:16px;border:0;border-bottom:1px solid var(--mcd-on-surface-variant);border-radius:4px 4px 0 0;background:var(--mcd-surface-container-highest);color:var(--mcd-on-surface);font-family:var(--mcd-mono);font-size:14px;line-height:20px;resize:vertical;outline:none}
+.mcd-code:hover:not(:focus){border-bottom-color:var(--mcd-on-surface)}
+.mcd-code:focus{border-bottom:2px solid var(--mcd-primary);outline:none;background:var(--mcd-surface-container-highest)}
+.mcd-code::placeholder{color:var(--mcd-on-surface-variant)}
   `;
 
     /** Panel copy. Client locale dictionaries are separate from the Host locale files. */
@@ -3029,11 +3046,11 @@ body[data-ds-dark-theme] .mcd-root{
         const packList = (title, entries, selectedSet, kind, onListChange, key) =>
           h(
             'div',
-            { className: 'mcd-field', key },
+            { className: 'mcd-field mcd-field-static', key },
             h(
               'div',
               { className: 'mcd-field-row', style: { alignItems: 'center', justifyContent: 'space-between' } },
-              h('span', { className: 'mcd-field-label', style: { paddingLeft: '2px' } }, title),
+              h('span', { className: 'mcd-field-label' }, title),
               toneButton(translate(t, 'importPacks'), 'add', () => void importPackFolder(kind), { variant: 'tonal' }),
             ),
             entries.length === 0
@@ -3311,7 +3328,7 @@ body[data-ds-dark-theme] .mcd-root{
           { className: 'mcd-panel', role: 'tabpanel', key: 'panel-exec' },
           h('textarea', {
             key: 'code',
-            className: 'mcd-input mcd-code',
+            className: 'mcd-code',
             rows: 5,
             value: exec.code,
             spellCheck: false,
@@ -3386,11 +3403,12 @@ body[data-ds-dark-theme] .mcd-root{
           { className: 'mcd-panel', role: 'tabpanel', key: 'panel-docs' },
           h(
             'div',
-            { className: 'mcd-row' },
+            { className: 'mcd-search-bar', key: 'search-row' },
+            h(Icon, { name: 'search', key: 'leading' }),
             h('input', {
               key: 'query',
               type: 'search',
-              className: 'mcd-input mcd-search',
+              className: 'mcd-search-input',
               value: docs.query,
               placeholder: translate(t, 'docsPlaceholder'),
               'aria-label': translate(t, 'docs'),
@@ -3409,7 +3427,6 @@ body[data-ds-dark-theme] .mcd-root{
               key: 'search',
               icon: 'search',
               label: translate(t, 'search'),
-              variant: 'filled',
               busy: docsBusy,
               disabled: docsBusy || docs.query.trim() === '',
               onClick: () => void searchDocs(),
