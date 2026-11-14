@@ -7,27 +7,39 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # The plugin drives the Windows-only NetEase ModPC client; unit tests are
+    # platform-independent but the repo is developed and verified on Windows.
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - name: Syntax check (all plugins)
+        shell: pwsh
         run: |
-          for plugin in dsh-mcdev smart-direction smart-workflow dsh-checkpoint; do
-            find "$plugin" -name '*.js' -not -path '*/client.js' -not -path '*/node_modules/*' -print0 \
-              | xargs -0 -r -n1 node --check
-            find "$plugin" -name '*.mjs' -not -path '*/node_modules/*' -print0 \
-              | xargs -0 -r -n1 node --check
-          done
-      - name: dsh-mcdev tests
+          $failed = 0
+          Get-ChildItem -Recurse -File -Include *.js,*.mjs | Where-Object { $_.FullName -notmatch 'node_modules' } | ForEach-Object {
+            node --check $_.FullName 2>&1 | Out-Null
+            if ($LASTEXITCODE -ne 0) { Write-Host "FAIL $($_.FullName)"; $failed += 1 }
+          }
+          if ($failed -gt 0) { exit 1 }
+      - name: dsh-mcdev unit tests
+        shell: pwsh
         working-directory: dsh-mcdev
         run: |
-          node scripts/test-host.mjs
-          node scripts/test-integration.mjs
-          node scripts/test-native-util.mjs
-          node scripts/test-native-channel.mjs
-          node scripts/test-client-shapes.mjs
-          node scripts/test-locale-parity.mjs
-          node scripts/test-docs-search.mjs
+          $scripts = @(
+            'scripts/test-host.mjs',
+            'scripts/test-native-util.mjs',
+            'scripts/test-native-channel.mjs',
+            'scripts/test-client-shapes.mjs',
+            'scripts/test-locale-parity.mjs',
+            'scripts/test-docs-search.mjs'
+          )
+          foreach ($script in $scripts) {
+            Write-Host "== $script =="
+            node $script
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+          # scripts/test-integration.mjs needs an installed NetEase ModPC client and
+          # is run manually on a dev machine; it is not part of CI.
