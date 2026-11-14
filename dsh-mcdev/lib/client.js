@@ -568,6 +568,24 @@ body[data-ds-dark-theme] .mcd-root{
 .mcd-code:hover:not(:focus){border-bottom-color:var(--mcd-on-surface)}
 .mcd-code:focus{border-bottom:2px solid var(--mcd-primary);outline:none;background:var(--mcd-surface-container-highest)}
 .mcd-code::placeholder{color:var(--mcd-on-surface-variant)}
+/* M3 pack picker: list items with leading pack icon, name + source meta, trailing checkbox */
+.mcd-pack-section{display:flex;flex-direction:column;gap:8px}
+.mcd-pack-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:40px}
+.mcd-pack-title{font-size:14px;line-height:20px;font-weight:500;color:var(--mcd-on-surface)}
+.mcd-pack-head .mcd-btn{height:36px;padding:0 12px;font-size:14px}
+.mcd-pack-list{display:flex;flex-direction:column;gap:2px;max-height:none;overflow:visible}
+.mcd-pack-item{display:flex;align-items:center;gap:12px;min-height:56px;padding:6px 8px 6px 6px;border-radius:12px;cursor:pointer;user-select:none;transition:background-color var(--mcd-dur-short4) var(--mcd-ease-standard)}
+@media (hover:hover){.mcd-pack-item:hover{background-color:color-mix(in srgb,var(--mcd-on-surface) 8%,transparent)}}
+.mcd-pack-icon{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:50%;background:var(--mcd-secondary-container);color:var(--mcd-on-secondary-container)}
+.mcd-pack-icon svg{width:22px;height:22px;fill:currentColor}
+.mcd-pack-text{display:flex;flex-direction:column;gap:2px;flex:1 1 auto;min-width:0}
+.mcd-pack-name{font-size:14px;line-height:20px;font-weight:500;color:var(--mcd-on-surface);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcd-pack-meta{font-size:12px;line-height:16px;color:var(--mcd-on-surface-variant);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcd-pack-item input[type=checkbox]{appearance:none;-webkit-appearance:none;display:grid;place-items:center;flex:none;width:18px;height:18px;margin:0;border:2px solid var(--mcd-outline);border-radius:2px;background:transparent;cursor:pointer}
+.mcd-pack-item input[type=checkbox]:checked{background:var(--mcd-primary);border-color:var(--mcd-primary)}
+.mcd-pack-item input[type=checkbox]:checked::before{content:"";width:4px;height:8px;margin-top:-2px;border:solid var(--mcd-on-primary);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.mcd-pack-item input[type=checkbox]:focus-visible{outline:2px solid var(--mcd-primary);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.mcd-pack-item{transition:none}}
   `;
 
     /** Panel copy. Client locale dictionaries are separate from the Host locale files. */
@@ -1345,6 +1363,8 @@ body[data-ds-dark-theme] .mcd-root{
       add: 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z',
       folder: 'M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z',
       edit: 'M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z',
+      extension: 'M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5a2.5 2.5 0 0 0-5 0V5H4a2 2 0 0 0-2 2v3.8h1.5a2.7 2.7 0 0 1 0 5.4H2V20a2 2 0 0 0 2 2h3.8v-1.5a2.7 2.7 0 0 1 5.4 0V22H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z',
+      palette: 'M12 22a10 10 0 1 1 10-10c0 2.2-1.8 4-4 4h-1.5a2 2 0 0 0-1.4 3.4c.3.3.4.7.4 1.1 0 1.4-1.1 2.5-2.5 2.5zM6.5 11a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm3-4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z',
       check: 'M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z',
       copy: 'M16 1H4a2 2 0 0 0-2 2v14h2V3h12zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11z',
       search:
@@ -2788,7 +2808,6 @@ body[data-ds-dark-theme] .mcd-root{
           )
         : null;
 
-      const idleHint = phase === 'idle' && !busyAction ? h('p', { className: 'mcd-hint', key: 'idle' }, translate(t, 'idleHint')) : null;
       const notReadyHint = !launching && phase !== 'idle' && !ready ? h('p', { className: 'mcd-hint', key: 'notready' }, translate(t, 'notReadyHint')) : null;
       const statusError = view.statusError !== undefined && view.statusError !== '' && error === undefined
         ? h('p', { className: 'mcd-error', key: 'status-error', role: 'alert' }, view.statusError)
@@ -3046,24 +3065,56 @@ body[data-ds-dark-theme] .mcd-root{
         const packList = (title, entries, selectedSet, kind, onListChange, key) =>
           h(
             'div',
-            { className: 'mcd-field mcd-field-static', key },
+            { className: 'mcd-pack-section', key },
             h(
               'div',
-              { className: 'mcd-field-row', style: { alignItems: 'center', justifyContent: 'space-between' } },
-              h('span', { className: 'mcd-field-label' }, title),
-              toneButton(translate(t, 'importPacks'), 'add', () => void importPackFolder(kind), { variant: 'tonal' }),
+              { className: 'mcd-pack-head' },
+              h('span', { className: 'mcd-pack-title' }, title),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'mcd-btn',
+                  'data-variant': 'text',
+                  disabled: launch.busy,
+                  onClick: () => void importPackFolder(kind),
+                },
+                h(Icon, { name: 'add' }),
+                translate(t, 'importPacks'),
+              ),
             ),
             entries.length === 0
               ? h('p', { className: 'mcd-helper' }, translate(t, 'noPacks'))
               : h(
                   'div',
                   { className: 'mcd-pack-list' },
-                  entries.map((entry) =>
-                    h(
+                  entries.map((entry) => {
+                    const version = Array.isArray(entry.version)
+                      ? entry.version.join('.')
+                      : typeof entry.version === 'string' ? entry.version : '';
+                    const sourceLabel = translate(
+                      t,
+                      entry.source === 'project' ? 'packSourceProject' : entry.source === 'imported' ? 'packSourceImported' : 'packSourceGlobal',
+                    );
+                    const name = typeof entry.name === 'string' && entry.name !== '' ? entry.name : entry.uuid;
+                    return h(
                       'label',
-                      { className: 'mcd-check', key: entry.uuid, title: typeof entry.dir === 'string' ? entry.dir : entry.uuid },
+                      {
+                        className: 'mcd-pack-item',
+                        key: entry.uuid,
+                        title: typeof entry.dir === 'string' ? entry.dir : entry.uuid,
+                      },
+                      h('span', { className: 'mcd-pack-icon', key: 'icon' }, h(Icon, { name: kind === 'behavior' ? 'extension' : 'palette' })),
+                      h(
+                        'span',
+                        { className: 'mcd-pack-text', key: 'text' },
+                        h('span', { className: 'mcd-pack-name' }, name),
+                        h('span', { className: 'mcd-pack-meta' }, sourceLabel + (version !== '' ? ' · ' + version : '')),
+                      ),
                       h('input', {
+                        key: 'check',
                         type: 'checkbox',
+                        className: 'mcd-pack-check',
                         checked: selectedSet.has(entry.uuid),
                         onChange: (event) => {
                           const next = new Set(selectedSet);
@@ -3072,10 +3123,8 @@ body[data-ds-dark-theme] .mcd-root{
                           onListChange(Array.from(next));
                         },
                       }),
-                      h('span', { className: 'mcd-check-name' }, typeof entry.name === 'string' && entry.name !== '' ? entry.name : entry.uuid),
-                      h('span', { className: 'mcd-badge' }, translate(t, entry.source === 'project' ? 'packSourceProject' : entry.source === 'imported' ? 'packSourceImported' : 'packSourceGlobal')),
-                    ),
-                  ),
+                    );
+                  }),
                 ),
           );
         const worldChoices = [
@@ -3753,7 +3802,6 @@ body[data-ds-dark-theme] .mcd-root{
             h('div', { className: 'mcd-actions-row', key: 'actions' }, fullActions),
             bridgeReady ? null : h('p', { className: 'mcd-hint', key: 'bridge' }, translate(t, 'remoteUnavailable')),
             progress,
-            idleHint,
             notReadyHint,
             statusError,
             failureLine,
