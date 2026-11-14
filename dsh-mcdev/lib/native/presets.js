@@ -51,14 +51,21 @@ function newId(prefix) {
 
 /** 归一化 host 配置。 */
 export function normalizeHost(raw) {
-  const base = { world: '', behaviorPacks: null, resourcePacks: null, skin: '', slim: false };
+  const base = { world: '', behaviorPacks: null, resourcePacks: null, skin: '', slim: false, playerName: 'developer' };
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return base;
   base.world = cleanString(raw.world, 64);
   base.behaviorPacks = cleanPackList(raw.behaviorPacks);
   base.resourcePacks = cleanPackList(raw.resourcePacks);
   base.skin = cleanString(raw.skin, 1024);
   base.slim = raw.slim === true;
+  base.playerName = normalizePlayerName(raw.playerName);
   return base;
+}
+
+/** 游戏内玩家用户名：去空白，最长 32，空值回退 developer。 */
+export function normalizePlayerName(value) {
+  const name = cleanString(value, 32).replace(/[\r\n\t]/g, ' ').trim();
+  return name !== '' ? name : 'developer';
 }
 
 /** 归一化 guest 配置（只允许皮肤与纤细模型）。 */
@@ -164,6 +171,7 @@ export function defaultPreset(seed = {}) {
       resourcePacks: null,
       skin: seed.skin || '',
       slim: seed.slim === true,
+      playerName: seed.playerName || 'developer',
     },
     guests: [],
   });
@@ -223,5 +231,6 @@ export function resolveHostLaunch(preset, defaultWorld = 'MC_DEV_WORLD') {
     resourcePacks: host.resourcePacks,
     skin: host.skin,
     slim: host.slim === true,
+    playerName: host.playerName,
   };
 }

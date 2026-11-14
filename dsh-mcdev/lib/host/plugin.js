@@ -27,7 +27,7 @@ const SECTION_NAME = 'dsh-mcdev/minecraft'
 const SKILL_NAME = 'minecraft-mod-dev'
 const SERVICE_KEY = 'mcdev'
 /** Code version surfaced by `action: "help"`; bump with `package.json`. */
-const CODE_VERSION = '0.9.1'
+const CODE_VERSION = '0.10.0'
 
 /** Actions shared by the command and the agent tool. */
 const ACTIONS = [
@@ -60,7 +60,7 @@ const ACTIONS = [
 
 const ACTION_HELP = [
   'status — 当前状态（进程 / 是否进入存档 / MCP 连接 / 工程目录）',
-  'start [reset] [join] [waitMs] [world|behaviorPacks|resourcePacks|skin|slim] — 启动开发客户端（native 约 17–20s 进存档）；默认等待最多 180s',
+  'start [reset] [join] [waitMs] [world|behaviorPacks|resourcePacks|skin|slim] — 启动开发客户端（native 约 17–20s 进存档）；预设里有 N 个访客时会额外拉起 N 个空白客户端（主菜单，需手动【好友】加入）；默认等待最多 180s',
   'stop — 结束本插件启动的游戏（不会结束用户自己启动的进程）',
   'games — 列出当前连接的多个游戏实例（机器），日志/执行指令时用 --machine 切换',
   'logs [since N] [limit N] [errors] [grep TEXT] [--machine ID] — 增量读取日志（官方 Debug_Log + 游戏内 print 回传）',
@@ -88,7 +88,7 @@ const ACTION_HELP = [
 const SYSTEM_PROMPT = [
   'Minecraft (网易我的世界) 开发：任务涉及 Mod/Addon、ModSDK、行为包/资源包、JSON UI 或真实游戏验证时，使用 `mcdev` 工具。',
   '写 ModSDK 代码前先用 `docs_search` 查官方资料（离线语料含 ModAPI/网易教程/QuMod/SAPI），不要凭记忆猜接口；改完代码用 `reload` + `logs` 验证，日志和错误优先于截图。',
-  '需要换世界/附加包/皮肤或游戏路径时：用 `presets` 读取、`preset-save` 保存启动预设（含 gameExe、host 的世界/包/皮肤、guest 皮肤；文件在 <project>/.mcdev/launch-presets.json，不改 .mcdev.json），`preset-active` 选当前预设；之后 `start` 自动沿用。',
+  '需要换世界/附加包/皮肤或游戏路径时：用 `presets` 读取、`preset-save` 保存启动预设（含 gameExe、host 的世界/包/皮肤、guest 皮肤；文件在 <project>/.mcdev/launch-presets.json），`preset-active` 选当前预设；之后 `start` 自动沿用。',
   '同时连接了多个游戏实例时：`games` 查看机器列表，`exec`/`logs`/`game_logs`/`reload` 用 `machine`（连接 id）指定实例。',
   '`start` 可能要 1–3 分钟，`stop` 会结束游戏进程，执行前确认用户意图。',
 ].join('\n')
@@ -112,12 +112,12 @@ ${ACTION_HELP}
 7. 全部结束 \`stop\`。
 
 ## 启动预设（presets）
-- 预设文件 \`<工程>/.mcdev/launch-presets.json\`（插件自有，不改 \`.mcdev.json\`）；每个预设 =
-  \`{id, name, gameExe, host:{world,behaviorPacks,resourcePacks,skin,slim,skinsDir}, guests:[{id,name,skin,slim}]}\`。
+- 预设文件 \`<工程>/.mcdev/launch-presets.json\`（插件自有）；每个预设 =
+  \`{id, name, gameExe, host:{world,behaviorPacks,resourcePacks,skin,slim,playerName}, guests:[{id,name,skin,slim}]}\`。
 - \`presets\` 读取全部预设 + 世界/包/皮肤清单；\`preset-save {preset}\` 新增/更新；\`preset-delete {presetId}\`；\`preset-active {presetId}\`。
 - 一个预设只有一个 host：host 可选世界/行为包/资源包/皮肤；guest 只能配皮肤（世界与包由 host 决定）。
 - \`gameExe\` 是该预设的 Minecraft.Windows.exe 路径（不同机器安装位置可能不同；空 = 自动探测）。
-- 启动按钮 = 启动当前激活预设的 host；guest 启动项已保存但暂不自动拉起（等待联机方案）。
+- 启动按钮 = 启动当前激活预设的 host；预设里有 N 个 guest 时会再额外拉起 N 个空白客户端（主菜单），在客户端里用【好友】手动加入 host 世界。
 - 一次性覆盖仍可用：\`start {presetId, world, behaviorPacks, resourcePacks, skin, slim}\`。
 - \`worlds\` / \`packs\` / \`skins\` / \`world-create\` 用于填充预设里的选项。
 - 浏览器面板的动作行右侧「设置」按钮会打开预设设置页。
@@ -185,6 +185,9 @@ function formatStatus(status) {
     const pids = []
     if (status.gamePid !== undefined) pids.push(`game=${status.gamePid}`)
     if (pids.length > 0) lines.push(`进程: ${pids.join(' ')}`)
+    if (Array.isArray(status.guestPids) && status.guestPids.length > 0) {
+      lines.push(`访客客户端: ${status.guestPids.join(' ')}（停在主菜单，需在【好友】里加入本机世界）`)
+    }
   }
   lines.push(`工程: ${status.projectDir ?? '-'}`)
   lines.push(`配置: ${status.configPath ?? '-'}`)
