@@ -1,4 +1,6 @@
-# dsh-mcdev — 实现契约（v0.9.0：多游戏实例 / 日志与执行可切换机器）
+# dsh-mcdev — 实现契约（v0.9.1：访客说明 / 局域网多人测试流程）
+
+> **v0.9.1 变更（文案）**：访客卡片说明改为官方多人测试流程：访客只保存皮肤；本地多人测试需要保持 host 运行 + 用 MC Studio【工具箱 → Mod PC 开发包】再启动一个客户端 + 在【好友】里手动加入世界。官方开发客户端不支持通过启动参数自动加入房间（实测无世界 `cppconfig` 启动会直接崩溃），因此本插件不会自动拉起访客。参考官方文档：<https://dev.mc.163.com/dev/mcmanual/mc-dev/mcguide/30-测试/0-ModPC开发包多人测试.html>。仅 Client/文案改动。
 
 > **v0.9.0 变更（功能 + UI）**：同一台机器上同时连多个游戏实例时，日志与执行代码可以按实例切换。
 > - **channel**：每侧（client/server）可并存多个连接；hello 上报 `pid`/`levelId`；`clients()` 返回 `{id, side, pid, levelId, version, since, remotePort}`；同 `pid` 重连替换旧连接，不同实例并存；`ping`/`exec`/`reload` 支持按 `machine`（连接 id）路由；log 事件带连接 id/pid。

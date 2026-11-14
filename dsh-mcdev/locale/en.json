@@ -117,7 +117,7 @@
     "deleteGuest": "Remove guest",
     "noGuests": "No guest launches yet",
     "guest": "Guest",
-    "guestHint": "Guests only pick a skin; world and packs come from the host. Guest launches are saved but not started yet.",
+    "guestHint": "Guests only pick a skin; world and packs come from the host. Local multiplayer needs a manual join: keep this host running, start another Mod PC client from MC Studio (Toolbox → Mod PC Dev Package), then join this world under Friends. The client cannot be auto-joined from launch arguments.",
     "presetHint": "These settings only affect launches from this plugin; .mcdev.json is not modified.",
     "addPreset": "Add preset",
     "deletePreset": "Delete preset",
