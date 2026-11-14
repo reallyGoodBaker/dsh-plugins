@@ -114,7 +114,7 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
 - **切换规则**：icon 点图标 → compact；compact 点图标 → icon；compact 点放大 → full；full 点缩小 → compact；full 点图标 → icon；
 - **启动/停止合并为一个按钮**（▶ / ■ / ✕），其余动作全部是带 tooltip 与 aria-label 的图标按钮；
 - 全部颜色/圆角/字体走 M3 token（Minecraft 绿主色、surface-container 系列、state layer、深浅主题 fallback、`prefers-reduced-motion`）；
-- **全部 UI 按 Material 3 规范实现，没有原生表单控件**：按钮为 filled/tonal/outlined/text 四类（40dp、20dp 圆角、18dp 图标）并有 hover/pressed state layer 与点击 ripple 动效（`prefers-reduced-motion` 下关闭）；下拉是自绘 M3 dropdown（4dp 菜单容器、48dp 菜单项、选中勾选、浮层不超出面板）；文本框是 M3 outlined field（4dp 圆角 + 浮动标签 + 聚焦 2dp primary 边框）；另有 M3 tabs（3dp 指示条）、filter chip（8dp）、18dp checkbox、52×32 switch、filled card、56dp top app bar；
+- **全部 UI 按 Material 3 规范实现，没有原生表单控件**：单一启动/停止动作为 M3 FAB（56dp、16dp 圆角、elevation 1→3）；按钮为 filled/tonal/outlined/text 四类（40dp、20dp 圆角、18dp 图标）并有 hover/pressed state layer 与点击 ripple 动效（`prefers-reduced-motion` 下关闭）；下拉是自绘 M3 dropdown（4dp 菜单容器、48dp 菜单项、选中勾选、scale+fade 展开动效、浮层不超出面板）；文本框是 M3 outlined field（4dp 圆角 + 浮动标签 + 聚焦 2dp primary 边框）；图标按钮用自绘 M3 tooltip（4dp 圆角、550ms 延迟）取代原生 title；类型尺度按 M3 typescale（Title L 22 / Title M 16 / Body M 14 / Body S 12 / Label L 14 / Label M 12）；另有 M3 primary tabs（3dp 指示条）、filter chip（8dp）、18dp checkbox、52×32 switch、filled card、56dp top app bar；
 - 窗口根节点使用 CSS `contain: content`（layout/style/paint 隔离）：拖拽、缩放、日志高频刷新只重排/重绘面板子树，不波及整个 Harness 页面；
 - 键盘：图标 Enter/Space 进入 compact，`Esc` 逐级后退（full → compact → icon），方向键移动，tab 左右切换；几何信息记忆在 `localStorage`（v4），**每次页面加载都从 icon 模式开始**。
 

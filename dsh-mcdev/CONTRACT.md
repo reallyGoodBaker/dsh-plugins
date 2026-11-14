@@ -1,4 +1,14 @@
-# dsh-mcdev — 实现契约（v0.8.2：全组件 Material 3 / 自绘下拉）
+# dsh-mcdev — 实现契约（v0.8.3：M3 细节收口 / 动效、类型尺度、工具提示）
+
+> **v0.8.3 变更（UI，binding）**：在 v0.8.2 全组件 M3 基础上继续收口：
+> - **单一启动/停止动作改为 M3 FAB**（56dp、16dp 圆角、24dp 图标、elevation 1→3，悬停/按下 state layer + ripple）；
+> - **类型尺度按 M3 typescale**：Title L 22/28（设置页 top app bar）、Title M 16/24、Body M 14/20（面板基准）、Body S 12/16（辅助文本）、Label L 14/20（按钮/tab/menu/chip）、Label M 12/16（字段标签）；
+> - **禁用态按 M3 token**：内容 on-surface 38%、容器 on-surface 12%（filled/tonal），outlined 边框 outline 12%；
+> - **焦点指示**改为 primary 2dp（M3 focus indicator）；outlined 字段 hover 边框 on-surface、聚焦时标签变 primary；
+> - **自绘 M3 工具提示**：图标按钮不再用原生 `title`，改为 550ms 延迟的面板内 tooltip（4dp 圆角、surface-container-highest、elevation 2、fade+scale 动效），随 hover/focus 出现，点击/移出立即消失；
+> - **菜单/提示动效**：M3 emphasized decelerate（300ms，scale 0.9→1，向下方展开时 origin top、向上方时 origin bottom），`prefers-reduced-motion` 下关闭；
+> - switch 增加 elevation 阴影与 primary 焦点环；checkbox hover state layer。
+> - 仅 Client 改动，Host 接口不变。
 
 > **v0.8.2 变更（UI，binding）**：面板内**所有**元素按 Material 3 规范重做，不使用原生表单控件：
 > - **自绘下拉菜单**：`<select>` 全部移除，改为 M3 dropdown（点击触发字段 → 面板内浮层菜单，4dp 容器、48dp 菜单项、选中态勾选 + surface-container-highest、超长名称省略、超出面板自动向上/限制高度）；触发器为 M3 outlined field（4dp 圆角 + 浮动标签 + 下拉箭头）。
