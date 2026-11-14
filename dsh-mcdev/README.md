@@ -110,10 +110,11 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
 
 - **icon 模式**：只显示一个 56dp 圆角图标（Minecraft 方块 + 状态点：绿=已进入游戏 / 黄=启动中 / 红=失败），**没有任何弹层/文字**；
 - **compact 模式**：点击图标进入——图标 + 标题 + 状态 + 「放大」按钮，以及启动/停止、刷新、重载三个动作；不展示日志等其余内容；
-- **full 模式**：compact 点「放大」进入——完整 M3 卡片（拖拽条、标题栏、动作行、日志/执行代码/文档三个分段页）；动作行**最右侧的齿轮**在面板内打开设置页（预设卡片列表 → 编辑单个预设），返回按钮逐级回到主界面；
+- **full 模式**：compact 点「放大」进入——完整 M3 卡片（拖拽条、标题栏、动作行、M3 primary tabs 日志/执行代码/文档）；动作行**最右侧的齿轮**在面板内打开设置页（预设卡片列表 → 编辑单个预设），返回按钮逐级回到主界面；
 - **切换规则**：icon 点图标 → compact；compact 点图标 → icon；compact 点放大 → full；full 点缩小 → compact；full 点图标 → icon；
 - **启动/停止合并为一个按钮**（▶ / ■ / ✕），其余动作全部是带 tooltip 与 aria-label 的图标按钮；
 - 全部颜色/圆角/字体走 M3 token（Minecraft 绿主色、surface-container 系列、state layer、深浅主题 fallback、`prefers-reduced-motion`）；
+- **全部 UI 按 Material 3 规范实现，没有原生表单控件**：按钮为 filled/tonal/outlined/text 四类（40dp、20dp 圆角、18dp 图标）并有 hover/pressed state layer 与点击 ripple 动效（`prefers-reduced-motion` 下关闭）；下拉是自绘 M3 dropdown（4dp 菜单容器、48dp 菜单项、选中勾选、浮层不超出面板）；文本框是 M3 outlined field（4dp 圆角 + 浮动标签 + 聚焦 2dp primary 边框）；另有 M3 tabs（3dp 指示条）、filter chip（8dp）、18dp checkbox、52×32 switch、filled card、56dp top app bar；
 - 窗口根节点使用 CSS `contain: content`（layout/style/paint 隔离）：拖拽、缩放、日志高频刷新只重排/重绘面板子树，不波及整个 Harness 页面；
 - 键盘：图标 Enter/Space 进入 compact，`Esc` 逐级后退（full → compact → icon），方向键移动，tab 左右切换；几何信息记忆在 `localStorage`（v4），**每次页面加载都从 icon 模式开始**。
 

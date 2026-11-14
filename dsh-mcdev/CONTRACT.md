@@ -1,4 +1,11 @@
-# dsh-mcdev — 实现契约（v0.8.1：预设卡片列表 / 编辑页两级设置）
+# dsh-mcdev — 实现契约（v0.8.2：全组件 Material 3 / 自绘下拉）
+
+> **v0.8.2 变更（UI，binding）**：面板内**所有**元素按 Material 3 规范重做，不使用原生表单控件：
+> - **自绘下拉菜单**：`<select>` 全部移除，改为 M3 dropdown（点击触发字段 → 面板内浮层菜单，4dp 容器、48dp 菜单项、选中态勾选 + surface-container-highest、超长名称省略、超出面板自动向上/限制高度）；触发器为 M3 outlined field（4dp 圆角 + 浮动标签 + 下拉箭头）。
+> - **按钮**：filled / tonal / outlined / text 四类（高度 40dp、圆角 20dp、图标 18dp）；M3 state layer（hover 8% / pressed 12%）+ 点击 ripple 动效（`prefers-reduced-motion` 下关闭）；图标按钮 40dp 圆形。
+> - **Tabs** 改为 M3 primary tabs：48dp、active 3dp 圆角指示条、图标+文字；**filter chip** 8dp 圆角、选中勾选；**checkbox** 自绘 18dp 方框；**switch** 52×32 轨道 + 24dp 选中滑块；**cards** 使用 surface-container-highest 12dp 填充卡片；**top app bar** 56dp / 18px 标题；**menu** 上述自绘下拉。
+> - 文本字段统一 M3 outlined field（4dp 圆角、浮动标签、聚焦 2dp primary 边框）；所有控件聚焦环使用主题 focus 色。
+> - 移除 `<select>`、`.mcd-settings-bar` 旧样式等非 M3 写法；仅 Client 改动，Host 接口不变。
 
 > **v0.8.1 变更（UI）**：设置页拆成两级，避免"预设下拉 + 编辑表单"混在一起：
 > - 一级「启动预设」= 预设卡片列表：每张卡片显示序号/名称/世界·访客/exe/当前激活徽标，卡片上「设为当前 / 编辑 / 删除」，底部「＋ 新增预设」；

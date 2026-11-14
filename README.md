@@ -10,7 +10,7 @@ DeepSeek Harness（DSH）插件集合：把 Minecraft 网易版开发、智能�
 
 | 插件 | 目录 | 版本 | 说明 |
 | --- | --- | --- | --- |
-| Minecraft 开发伴侣 | [`dsh-mcdev`](./dsh-mcdev) | 0.8.1 | 在 DSH 内启动网易《我的世界》ModPC 开发客户端；官方日志跟随、游戏内 Python 执行、资源重载、截图、JSON UI、Material 3 启动预设（预设卡片列表 + 单预设编辑页，游戏路径/世界/行为包/资源包/皮肤全部通过文件夹选择器导入），以及内置的网易 ModSDK 离线文档检索 |
+| Minecraft 开发伴侣 | [`dsh-mcdev`](./dsh-mcdev) | 0.8.2 | 在 DSH 内启动网易《我的世界》ModPC 开发客户端；官方日志跟随、游戏内 Python 执行、资源重载、截图、JSON UI、全组件 Material 3 面板（自绘下拉/按钮动效/浮动标签/预设卡片 + 单预设编辑页，游戏路径/世界/行为包/资源包/皮肤全部通过文件夹选择器导入），以及内置的网易 ModSDK 离线文档检索 |
 | 智能方向 | [`smart-direction`](./smart-direction) | 0.1.0 | 非平凡改动前的价值检查，以及带每个选项收益/风险说明的「方向卡片」 |
 | 智能方向 + 工作流 | [`smart-workflow`](./smart-workflow) | 0.4.0 | 上面两者合体：方向卡片 + 工作区检查点 + 多智能体工作流 |
 | 工作区检查点 | [`dsh-checkpoint`](./dsh-checkpoint) | 0.2.0 | `/checkpoint` 命令、git 提交与基线语义、`#cp-N` 引用、会话压缩锚点 |

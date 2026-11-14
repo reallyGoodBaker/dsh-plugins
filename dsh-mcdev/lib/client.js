@@ -227,6 +227,20 @@ body[data-ds-dark-theme] .mcd-root{
 .mcd-badge{flex:none;padding:1px 6px;border-radius:var(--mcd-radius-full);background:var(--mcd-surface-container-highest);color:var(--mcd-on-surface-variant);font-size:10px}
 .mcd-skin-list{display:flex;flex-wrap:wrap;gap:4px;max-height:104px;overflow:auto}
 .mcd-settings{overflow:hidden}
+.mcd-select-layer{position:absolute;inset:0;z-index:40}
+.mcd-select-backdrop{position:absolute;inset:0;background:transparent}
+.mcd-menu{position:absolute;z-index:1;display:flex;flex-direction:column;gap:2px;padding:6px;border:1px solid var(--mcd-outline-variant);border-radius:var(--mcd-radius-md);background:var(--mcd-surface-container-highest);box-shadow:var(--mcd-shadow-3);overflow-y:auto;overflow-x:hidden}
+.mcd-menu:focus{outline:none}
+.mcd-menu-item{display:flex;align-items:center;gap:6px;flex:none;min-height:40px;padding:0 10px;border:0;border-radius:var(--mcd-radius-sm);background:transparent;color:var(--mcd-on-surface);font-family:inherit;font-size:13px;text-align:left;cursor:pointer}
+.mcd-menu-item[data-selected=true]{background:var(--mcd-primary-container);color:var(--mcd-on-primary-container)}
+.mcd-menu-item:focus-visible{outline:2px solid var(--mcd-focus);outline-offset:-2px}
+.mcd-menu-check{display:grid;place-items:center;flex:none;width:18px;height:18px}
+.mcd-menu-check svg{width:18px;height:18px;fill:currentColor}
+.mcd-menu-label{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcd-select-trigger{display:flex;align-items:center;gap:8px;width:100%;text-align:left;cursor:pointer;color:var(--mcd-on-surface)}
+.mcd-select-trigger[data-open=true]{outline:2px solid var(--mcd-primary);outline-offset:-1px;border-color:transparent}
+.mcd-select-text{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcd-select-trigger svg{flex:none;width:18px;height:18px;fill:var(--mcd-on-surface-variant)}
 .mcd-preset-card{gap:4px}
 .mcd-preset-text{display:flex;flex-direction:column;gap:2px;flex:1 1 auto;min-width:0}
 .mcd-preset-name{font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -299,6 +313,102 @@ body[data-ds-dark-theme] .mcd-root{
 .mcd-actions-row .mcd-icon-btn[data-variant=filled] svg{width:24px;height:24px}
 .mcd-actions-row .mcd-icon-btn{margin-right:2px}
 .mcd-icon-btn[data-variant=filled] svg{width:24px;height:24px}
+
+/* ================= Material 3 component pass ================= */
+.mcd-root{
+  --mcd-secondary-container:color-mix(in srgb,var(--mcd-primary) 12%,var(--mcd-surface-container-highest));
+  --mcd-on-secondary-container:color-mix(in srgb,var(--mcd-primary) 70%,var(--mcd-on-surface));
+  --mcd-ease:cubic-bezier(.2,0,0,1);
+  --mcd-ease-emphasized:cubic-bezier(.05,.7,.1,1);
+}
+body[data-ds-dark-theme] .mcd-root{
+  --mcd-secondary-container:color-mix(in srgb,#8fd67a 12%,var(--mcd-surface-container-highest));
+  --mcd-on-secondary-container:#b8e6a4;
+}
+@keyframes mcd-ripple{from{opacity:.16;transform:translate(-50%,-50%) scale(0)}to{opacity:0;transform:translate(-50%,-50%) scale(1)}}
+/* shared state-layer + ripple surface */
+.mcd-btn,.mcd-icon-btn,.mcd-chip,.mcd-tab,.mcd-menu-item,.mcd-add-preset,.mcd-logo-btn,.mcd-field-control,.mcd-select-trigger{
+  position:relative;overflow:hidden;
+  transition:background-color .15s var(--mcd-ease),color .15s var(--mcd-ease),border-color .15s var(--mcd-ease),box-shadow .15s var(--mcd-ease),opacity .15s var(--mcd-ease);
+}
+.mcd-btn::after,.mcd-icon-btn::after,.mcd-chip::after,.mcd-tab::after,.mcd-menu-item::after,.mcd-add-preset::after,.mcd-logo-btn::after{
+  content:"";position:absolute;left:var(--mcd-ripple-x,50%);top:var(--mcd-ripple-y,50%);width:160%;aspect-ratio:1;border-radius:50%;background:currentColor;opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(0);z-index:0;
+}
+.mcd-btn[data-ripple-run=true]::after,.mcd-icon-btn[data-ripple-run=true]::after,.mcd-chip[data-ripple-run=true]::after,.mcd-tab[data-ripple-run=true]::after,.mcd-menu-item[data-ripple-run=true]::after,.mcd-add-preset[data-ripple-run=true]::after,.mcd-logo-btn[data-ripple-run=true]::after{animation:mcd-ripple .48s var(--mcd-ease)}
+@media (prefers-reduced-motion:reduce){.mcd-btn[data-ripple-run=true]::after,.mcd-icon-btn[data-ripple-run=true]::after,.mcd-chip[data-ripple-run=true]::after,.mcd-tab[data-ripple-run=true]::after,.mcd-menu-item[data-ripple-run=true]::after,.mcd-add-preset[data-ripple-run=true]::after,.mcd-logo-btn[data-ripple-run=true]::after{animation:none}}
+/* buttons: filled / tonal / outlined / text */
+.mcd-btn{height:40px;padding:0 20px;border:1px solid transparent;border-radius:20px;font-size:14px;font-weight:500;letter-spacing:.1px;gap:8px}
+.mcd-btn svg{width:18px;height:18px}
+.mcd-btn[data-variant=filled]{background-color:var(--mcd-primary);color:var(--mcd-on-primary)}
+.mcd-btn[data-variant=tonal]{background-color:var(--mcd-secondary-container);color:var(--mcd-on-secondary-container)}
+.mcd-btn[data-variant=outlined]{background-color:transparent;border-color:var(--mcd-outline);color:var(--mcd-primary)}
+.mcd-btn:not(:disabled):hover{background-image:linear-gradient(color-mix(in srgb,currentColor 8%,transparent),color-mix(in srgb,currentColor 8%,transparent))}
+.mcd-btn:not(:disabled):active{background-image:linear-gradient(color-mix(in srgb,currentColor 12%,transparent),color-mix(in srgb,currentColor 12%,transparent))}
+.mcd-btn:disabled{opacity:.38;cursor:not-allowed;background-image:none}
+/* icon buttons: 40dp round, M3 variants */
+.mcd-icon-btn{border-radius:var(--mcd-radius-full);color:var(--mcd-on-surface-variant)}
+.mcd-icon-btn:not(:disabled):hover{background-color:color-mix(in srgb,var(--mcd-on-surface) 8%,transparent)}
+.mcd-icon-btn:not(:disabled):active{background-color:color-mix(in srgb,var(--mcd-on-surface) 12%,transparent)}
+.mcd-icon-btn[data-variant=filled]{color:var(--mcd-on-primary)}
+.mcd-icon-btn[data-variant=tonal]{color:var(--mcd-on-secondary-container)}
+/* primary tabs: 48dp, 3dp active indicator */
+.mcd-tabs{display:flex;gap:0;padding:0;border-radius:0;background:transparent;border-bottom:1px solid var(--mcd-outline-variant);height:48px}
+.mcd-tab{height:48px;border-radius:0;background:transparent;color:var(--mcd-on-surface-variant);font-size:13px;font-weight:500;gap:6px}
+.mcd-tab-label{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcd-tab[data-on=true]{background:transparent;color:var(--mcd-primary)}
+.mcd-tab[data-on=true]::before{content:"";position:absolute;left:10px;right:10px;bottom:0;height:3px;border-radius:3px 3px 0 0;background:var(--mcd-primary);z-index:1}
+.mcd-tab:not(:disabled):hover{background-color:color-mix(in srgb,var(--mcd-on-surface) 8%,transparent)}
+.mcd-tab:not(:disabled):active{background-color:color-mix(in srgb,var(--mcd-on-surface) 12%,transparent)}
+/* chips: M3 filter chip (8dp radius) */
+.mcd-chip{height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--mcd-outline);color:var(--mcd-on-surface-variant);font-size:13px;font-weight:500}
+.mcd-chip[data-on=true]{background-color:var(--mcd-secondary-container);border-color:transparent;color:var(--mcd-on-secondary-container)}
+.mcd-chip[data-on=true]::before{content:"✓";margin-right:6px;font-size:12px;line-height:1}
+.mcd-chip:not(:disabled):hover{background-color:color-mix(in srgb,var(--mcd-on-surface) 8%,transparent)}
+/* checkbox: M3 18dp box */
+.mcd-check input[type=checkbox]{appearance:none;-webkit-appearance:none;display:grid;place-items:center;flex:none;width:18px;height:18px;margin:0;border:2px solid var(--mcd-outline);border-radius:2px;background:transparent;cursor:pointer;transition:background-color .15s var(--mcd-ease),border-color .15s var(--mcd-ease)}
+.mcd-check input[type=checkbox]:checked{background:var(--mcd-primary);border-color:var(--mcd-primary)}
+.mcd-check input[type=checkbox]:checked::before{content:"";width:4px;height:8px;margin-top:-2px;border:solid var(--mcd-on-primary);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.mcd-check input[type=checkbox]:focus-visible{outline:2px solid var(--mcd-focus);outline-offset:2px}
+/* switches: M3 52x32 track, 24dp selected handle */
+.mcd-switch-track{width:52px;height:32px;border-radius:16px;background:var(--mcd-surface-container-highest);border:2px solid var(--mcd-outline)}
+.mcd-switch-thumb{left:5px;width:16px;height:16px;background:var(--mcd-outline);transition:left .2s var(--mcd-ease),width .2s var(--mcd-ease),height .2s var(--mcd-ease),background-color .2s var(--mcd-ease)}
+.mcd-switch input:checked + .mcd-switch-track .mcd-switch-thumb{left:calc(100% - 27px);width:24px;height:24px}
+.mcd-switch:hover .mcd-switch-track{box-shadow:0 0 0 8px color-mix(in srgb,var(--mcd-on-surface) 6%,transparent)}
+/* text fields: M3 outlined field (4dp radius, floating label) */
+.mcd-field{position:relative;padding-top:8px;gap:0}
+.mcd-field-label{position:absolute;top:8px;left:8px;z-index:1;padding:0 4px;background:var(--mcd-surface-container-highest);transform:translateY(-50%);font-size:11px;line-height:16px;letter-spacing:.4px;color:var(--mcd-on-surface-variant);white-space:nowrap;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis}
+.mcd-field-control{min-height:52px;padding:12px;border:1px solid var(--mcd-outline);border-radius:4px;background-color:transparent;font-size:14px;line-height:1.3}
+.mcd-field-control:focus,.mcd-field-control:focus-within{outline:none;border-color:var(--mcd-primary);box-shadow:inset 0 0 0 1px var(--mcd-primary)}
+.mcd-field-control::placeholder{color:var(--mcd-on-surface-variant);opacity:1}
+.mcd-select-trigger{display:flex;align-items:center;gap:8px;width:100%;text-align:left;cursor:pointer;color:var(--mcd-on-surface)}
+.mcd-select-trigger[data-open=true]{border-color:var(--mcd-primary);box-shadow:inset 0 0 0 1px var(--mcd-primary)}
+/* cards: M3 filled card (surface-container-highest, 12dp) */
+.mcd-card{background:var(--mcd-surface-container-highest);border-radius:12px;padding:12px}
+.mcd-badge{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:4px;background:var(--mcd-surface-container-high);color:var(--mcd-on-surface-variant);font-size:11px;font-weight:500;white-space:nowrap}
+.mcd-badge-active{background:var(--mcd-secondary-container);color:var(--mcd-on-secondary-container)}
+/* menus: M3 dropdown (4dp radius, 48dp items) */
+.mcd-menu{background:var(--mcd-surface-container);border:1px solid var(--mcd-outline-variant);border-radius:4px;padding:8px 0;box-shadow:var(--mcd-shadow-3)}
+.mcd-menu-item{min-height:48px;padding:0 12px;border-radius:0;font-size:14px}
+.mcd-menu-item[data-selected=true]{background:var(--mcd-surface-container-highest);color:var(--mcd-primary)}
+.mcd-menu-item:not(:disabled):hover{background-color:color-mix(in srgb,var(--mcd-on-surface) 8%,transparent)}
+.mcd-menu-item:not(:disabled):active{background-color:color-mix(in srgb,var(--mcd-on-surface) 12%,transparent)}
+/* top app bar (small): 56dp */
+.mcd-topbar{height:56px;padding:0 4px;border-bottom:1px solid var(--mcd-outline-variant)}
+.mcd-topbar-title{font-size:18px;font-weight:500;letter-spacing:.15px;padding-left:8px}
+/* add-preset row */
+.mcd-add-preset{height:52px;border-radius:12px;border:1px dashed var(--mcd-outline);color:var(--mcd-primary);font-size:14px;font-weight:500}
+.mcd-add-preset:not(:disabled):hover{background-color:color-mix(in srgb,var(--mcd-primary) 8%,transparent)}
+/* hints / labels typography */
+.mcd-helper{font-size:12px;line-height:1.45;color:var(--mcd-on-surface-variant)}
+.mcd-group-label{font-size:12px;letter-spacing:.2px;color:var(--mcd-on-surface-variant)}
+.mcd-error{font-size:12px;line-height:1.45;color:var(--mcd-error)}
+.mcd-note{font-size:12px;line-height:1.45;color:var(--mcd-on-primary-container)}
+/* misc surfaces */
+.mcd-logo-btn{border-radius:var(--mcd-radius-full)}
+.mcd-logo-btn:not(:disabled):hover{background-color:color-mix(in srgb,var(--mcd-primary) 8%,transparent)}
+@media (prefers-reduced-motion:reduce){
+  .mcd-btn,.mcd-icon-btn,.mcd-chip,.mcd-tab,.mcd-menu-item,.mcd-add-preset,.mcd-logo-btn,.mcd-field-control,.mcd-select-trigger,.mcd-switch-track,.mcd-switch-thumb,.mcd-check input[type=checkbox]{transition:none}
+}
   `;
 
     /** Panel copy. Client locale dictionaries are separate from the Host locale files. */
@@ -1064,6 +1174,7 @@ body[data-ds-dark-theme] .mcd-root{
       terminal: 'M4 5h16v14H4V5Zm2 2v10h12V7H6Zm1.5 2.5 2 2-2 2 1 1 3-3-3-3-1 1Zm4.5 5h5v-1.5H12V16.5Z',
       book: 'M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1Zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5Z',
       collapse: 'M12 16 6 10h12z',
+      chevron: 'M7 10l5 5 5-5z',
       expand: 'M12 8 6 14h12z',
       newer: 'M11 4h2v9h4l-5 5-5-5h4V4ZM5 19h14v2H5v-2Z',
       filter: 'M10 18h4v-2h-4v2ZM3 6v2h18V6H3Zm3 7h12v-2H6v2Z',
@@ -1176,6 +1287,9 @@ body[data-ds-dark-theme] .mcd-root{
       const [logSource, setLogSource] = React.useState('launcher');
       const [newWorldName, setNewWorldName] = React.useState('');
       const [newWorldFrom, setNewWorldFrom] = React.useState('');
+      const [selectMenu, setSelectMenu] = React.useState(undefined);
+      const menuRef = React.useRef(null);
+      const rippleTimer = React.useRef(0);
 
       const alive = React.useRef(true);
       const sessionRef = React.useRef(sessionId);
@@ -1832,6 +1946,52 @@ body[data-ds-dark-theme] .mcd-root{
           launch: { ...current.launch, page: 'preset', selectedId: presetId, draft: clonePreset(preset) },
         }));
       };
+
+      /**
+       * Open the custom M3 select menu under its trigger. Coordinates are relative to
+       * the panel root (`position:fixed` + `contain:content`), so the menu never leaves
+       * the panel and ignores the settings scroll container.
+       */
+      const openSelect = (event, spec) => {
+        const trigger = event !== null && event !== undefined ? event.currentTarget : null;
+        const root = rootRef.current;
+        if (trigger === null || root === null) return;
+        const rootRect = root.getBoundingClientRect();
+        const rect = trigger.getBoundingClientRect();
+        const gap = 4;
+        const spaceBelow = rootRect.bottom - rect.bottom - gap - 6;
+        const spaceAbove = rect.top - rootRect.top - gap - 6;
+        const above = spaceBelow < 160 && spaceAbove > spaceBelow;
+        const maxHeight = Math.max(120, Math.min(300, above ? spaceAbove : spaceBelow));
+        const left = Math.max(4, rect.left - rootRect.left);
+        const width = Math.max(140, Math.min(rect.width, rootRect.width - left - 8));
+        setSelectMenu({
+          id: spec.id,
+          label: spec.label,
+          value: spec.value,
+          choices: spec.choices,
+          onChange: spec.onChange,
+          left,
+          width,
+          maxHeight,
+          above,
+          top: rect.bottom - rootRect.top + gap,
+          bottom: rootRect.height - (rect.top - rootRect.top) + gap,
+        });
+      };
+
+      const closeSelect = () => setSelectMenu(undefined);
+
+      React.useEffect(() => {
+        if (selectMenu === undefined) return undefined;
+        if (menuRef.current !== null) menuRef.current.focus();
+        return undefined;
+      }, [selectMenu !== undefined]); // eslint-disable-line react-hooks/exhaustive-deps
+
+      React.useEffect(() => {
+        setSelectMenu(undefined);
+        return undefined;
+      }, [view.launch.page]); // eslint-disable-line react-hooks/exhaustive-deps
 
       /** Patch the editable preset draft (deep enough for host/guests). */
       const updateDraft = (updater) => {
@@ -2541,6 +2701,7 @@ body[data-ds-dark-theme] .mcd-root{
                   onKeyDown: (event) => onTabKeyDown(event, index),
                 },
                 h(Icon, { name: entry.icon }),
+                h('span', { className: 'mcd-tab-label' }, translate(t, entry.label)),
               ),
             ),
           )
@@ -2644,7 +2805,7 @@ body[data-ds-dark-theme] .mcd-root{
           Object.assign(next.host, patch);
         });
         const field = (label, control, key) =>
-          h('label', { className: 'mcd-field', key }, h('span', { className: 'mcd-field-label' }, label), control);
+          h('div', { className: 'mcd-field', key }, h('span', { className: 'mcd-field-label' }, label), control);
         const textField = (label, value, onChange, options = {}) =>
           field(
             label,
@@ -2654,25 +2815,52 @@ body[data-ds-dark-theme] .mcd-root{
               value: typeof value === 'string' ? value : '',
               readOnly: options.readOnly === true,
               placeholder: typeof options.placeholder === 'string' ? options.placeholder : '',
+              'aria-label': label,
               onChange: (event) => onChange(event.target.value),
               onKeyDown: options.onKeyDown,
             }),
             options.key,
           );
-        const selectField = (label, value, choices, onChange, key) =>
-          field(
+        const selectField = (label, value, choices, onChange, key) => {
+          const matching = choices.find((choice) => choice.value === value);
+          // A preset may reference a skin outside the imported list; show its file name anyway.
+          const fallbackLabel = typeof value === 'string' && value !== ''
+            ? value.split(/[\\/]/).pop()
+            : '';
+          const selected = matching || { label: fallbackLabel };
+          const open = selectMenu !== undefined && selectMenu.id === key;
+          return field(
             label,
             h(
-              'select',
+              'button',
               {
-                className: 'mcd-field-control',
-                value: typeof value === 'string' ? value : '',
-                onChange: (event) => onChange(event.target.value),
+                type: 'button',
+                className: 'mcd-field-control mcd-select-trigger',
+                'aria-haspopup': 'listbox',
+                'aria-label': label,
+                'aria-expanded': open ? 'true' : 'false',
+                'data-open': open ? 'true' : 'false',
+                onClick: (event) => {
+                  if (open) closeSelect();
+                  else openSelect(event, { id: key, label, value, choices, onChange });
+                },
+                onKeyDown: (event) => {
+                  if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+                    if (open) return;
+                    event.preventDefault();
+                    openSelect(event, { id: key, label, value, choices, onChange });
+                  } else if (event.key === 'Escape' && open) {
+                    event.preventDefault();
+                    closeSelect();
+                  }
+                },
               },
-              choices.map((choice) => h('option', { key: choice.value, value: choice.value }, choice.label)),
+              h('span', { className: 'mcd-select-text' }, selected.label),
+              h(Icon, { name: 'chevron', key: 'caret' }),
             ),
             key,
           );
+        };
         const toneButton = (label, icon, onClick, options = {}) =>
           h(
             'button',
@@ -3231,6 +3419,79 @@ body[data-ds-dark-theme] .mcd-root{
         );
       }
 
+      /** M3 ripple: pointer-down sets the origin, CSS runs the expanding state layer. */
+      const onRipplePointerDown = (event) => {
+        const point = event.target;
+        if (point === null || point === undefined || typeof point.closest !== 'function') return;
+        const target = point.closest('.mcd-btn,.mcd-icon-btn,.mcd-chip,.mcd-tab,.mcd-menu-item,.mcd-add-preset,.mcd-logo-btn');
+        if (target === null || target.disabled === true) return;
+        const rect = target.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+        target.style.setProperty('--mcd-ripple-x', (((event.clientX - rect.left) / rect.width) * 100).toFixed(2) + '%');
+        target.style.setProperty('--mcd-ripple-y', (((event.clientY - rect.top) / rect.height) * 100).toFixed(2) + '%');
+        target.setAttribute('data-ripple-run', 'false');
+        void target.offsetWidth; // restart the animation for repeated presses
+        target.setAttribute('data-ripple-run', 'true');
+        window.clearTimeout(rippleTimer.current);
+        rippleTimer.current = window.setTimeout(() => {
+          if (target.isConnected) target.setAttribute('data-ripple-run', 'false');
+        }, 520);
+      };
+
+      const selectLayer = selectMenu === undefined
+        ? null
+        : h(
+            'div',
+            { className: 'mcd-select-layer', key: 'select-layer' },
+            h('div', {
+              className: 'mcd-select-backdrop',
+              key: 'select-backdrop',
+              onPointerDown: closeSelect,
+            }),
+            h(
+              'div',
+              {
+                className: 'mcd-menu',
+                key: 'select-menu',
+                ref: menuRef,
+                role: 'listbox',
+                'aria-label': selectMenu.label,
+                tabIndex: -1,
+                style: selectMenu.above
+                  ? { left: selectMenu.left + 'px', width: selectMenu.width + 'px', bottom: selectMenu.bottom + 'px', maxHeight: selectMenu.maxHeight + 'px' }
+                  : { left: selectMenu.left + 'px', width: selectMenu.width + 'px', top: selectMenu.top + 'px', maxHeight: selectMenu.maxHeight + 'px' },
+                onKeyDown: (event) => {
+                  if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    closeSelect();
+                  }
+                },
+              },
+              selectMenu.choices.map((choice) =>
+                h(
+                  'button',
+                  {
+                    key: choice.value,
+                    type: 'button',
+                    role: 'option',
+                    'aria-selected': choice.value === selectMenu.value ? 'true' : 'false',
+                    className: 'mcd-menu-item',
+                    'data-selected': choice.value === selectMenu.value ? 'true' : 'false',
+                    title: choice.label,
+                    onClick: () => {
+                      const apply = selectMenu.onChange;
+                      closeSelect();
+                      apply(choice.value);
+                    },
+                  },
+                  h('span', { className: 'mcd-menu-check', key: 'check' }, choice.value === selectMenu.value ? h(Icon, { name: 'check' }) : null),
+                  h('span', { className: 'mcd-menu-label', key: 'label' }, choice.label),
+                ),
+              ),
+            ),
+          );
+
       return h(
         'div',
         {
@@ -3248,6 +3509,7 @@ body[data-ds-dark-theme] .mcd-root{
           'data-dragging': dragging ? 'true' : 'false',
           'data-resizing': resizing ? 'true' : 'false',
           'aria-label': translate(t, 'title'),
+          onPointerDownCapture: onRipplePointerDown,
           onKeyDown: (event) => {
             if (event.key === 'Escape') {
               event.preventDefault();
@@ -3290,6 +3552,7 @@ body[data-ds-dark-theme] .mcd-root{
             onPointerCancel: endResize,
             onKeyDown: onResizeKeyDown,
           }),
+          selectLayer,
         ),
       );
     }
