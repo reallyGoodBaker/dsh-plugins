@@ -17,7 +17,7 @@ import { GameChannel } from './channel.js';
 import { OfficialLogFollower } from './logs.js';
 import { captureGameWindow } from './screenshot.js';
 import { LogBuffer } from './util.js';
-import { configPathOf, isPlainObject, readConfigWithDefaults, writeMergedConfig } from './util.js';
+import { isPlainObject } from './util.js';
 import { isProcessAlive, listGameProcesses, findProcessUsingWorld } from './util.js';
 import {
   BRIDGE_PACK_UUID,
@@ -45,20 +45,18 @@ import {
   writeDevConfig,
 } from './launcher.js';
 import {
-  launchProfilePath,
+  discoverSkinFile,
+  importPack,
+  importSkins,
+  isPngFile,
   packCatalog,
-  readLaunchProfile,
   resolveSelectedPacks,
-  skinDirsOf,
   skinFiles,
-  worldNameOf,
-  writeLaunchProfile,
-} from './launchProfile.js';
+} from './catalog.js';
 import {
   defaultPreset,
   findPreset,
   normalizePresets,
-  presetFromLegacyProfile,
   presetsPath,
   readPresets,
   removePreset,
@@ -185,18 +183,13 @@ export class NativeProvider {
     return this.projectDir;
   }
 
-  /** 当前会话 .mcdev.json 路径。 */
-  get configPath() {
-    return configPathOf(this.projectDir);
-  }
-
   /** bridge 行为包安装目录。 */
   get bridgePackDirPath() {
     return bridgePackDir();
   }
 
   // ---------------------------------------------------------------------------
-  // 项目 / 配置
+  // 项目
   // ---------------------------------------------------------------------------
 
   /** 切换项目目录（同步；未运行时才允许）。 */
@@ -207,58 +200,39 @@ export class NativeProvider {
     return true;
   }
 
-  /** 读取 .mcdev.json（与默认值合并；文件不存在返回默认值，不写文件）。 */
-  readConfig(projectDir) {
-    return readConfigWithDefaults(projectDir || this.projectDir);
-  }
-
-  /** 合并写回 .mcdev.json（写前备份 .mcdev.json.bak）。 */
-  updateConfig(patch, projectDir) {
-    if (!isPlainObject(patch)) throw new Error('updateConfig(patch) 需要一个普通对象');
-    const dir = path.resolve(projectDir || this.projectDir);
-    const { config } = writeMergedConfig(dir, patch);
-    return config;
-  }
-
   // ---------------------------------------------------------------------------
-  // 启动配置（插件自有的世界 / 行为包 / 资源包 / 皮肤选择）
+  // 目录：世界 / 包 / 皮肤（导入）
   // ---------------------------------------------------------------------------
 
-  /** 读取启动配置。 */
-  launchProfile(projectDir) {
-    const dir = path.resolve(projectDir || this.projectDir);
-    return { path: launchProfilePath(dir), profile: readLaunchProfile(dir) };
-  }
-
-  /** 合并写回启动配置（不修改 .mcdev.json）。 */
-  updateLaunchProfile(patch, projectDir) {
-    if (!isPlainObject(patch)) throw new Error('updateLaunchProfile(patch) 需要一个普通对象');
-    const dir = path.resolve(projectDir || this.projectDir);
-    const { path: profilePath, profile } = writeLaunchProfile(dir, patch);
-    return { path: profilePath, profile };
-  }
-
-  /** 列出可选世界 + 当前生效世界。 */
+  /** 列出可选世界 + 当前激活预设的世界。 */
   listWorlds(projectDir) {
     const dir = path.resolve(projectDir || this.projectDir);
-    const config = this.readConfig(dir);
-    const profile = readLaunchProfile(dir);
-    return { worlds: listWorlds(), current: worldNameOf(config, profile), profile };
+    const state = this._ensurePresets(dir);
+    const preset = findPreset(state, '');
+    const host = preset !== null ? resolveHostLaunch(preset) : { world: '' };
+    return {
+      worlds: listWorlds(),
+      current: host.world,
+      presetId: preset !== null ? preset.id : '',
+      presetName: preset !== null ? preset.name : '',
+    };
   }
 
-  /** 列出可选行为包/资源包 + 当前选择。 */
+  /** 列出可选行为包/资源包 + 当前激活预设的选择。 */
   packCatalog(projectDir) {
     const dir = path.resolve(projectDir || this.projectDir);
-    const config = this.readConfig(dir);
-    const profile = readLaunchProfile(dir);
-    const catalog = packCatalog(dir, config);
+    const state = this._ensurePresets(dir);
+    const preset = findPreset(state, '');
+    const host = preset !== null ? resolveHostLaunch(preset) : { behaviorPacks: null, resourcePacks: null };
+    const catalog = packCatalog(dir);
     const selected = resolveSelectedPacks(catalog, {
-      behaviorPacks: profile.behaviorPacks,
-      resourcePacks: profile.resourcePacks,
+      behaviorPacks: host.behaviorPacks,
+      resourcePacks: host.resourcePacks,
     });
     return {
       ...catalog,
-      profile,
+      presetId: preset !== null ? preset.id : '',
+      presetName: preset !== null ? preset.name : '',
       selected: {
         behavior: selected.behavior.map((item) => item.uuid),
         resource: selected.resource.map((item) => item.uuid),
@@ -267,14 +241,24 @@ export class NativeProvider {
     };
   }
 
-  /** 列出可选皮肤 PNG（可选 dirs 覆盖：面板传入的皮肤目录）。 */
-  skins(projectDir, skinsDir) {
+  /** 列出已导入皮肤 PNG（<project>/.mcdev/skins）。 */
+  skins(projectDir) {
     const dir = path.resolve(projectDir || this.projectDir);
-    const profile = readLaunchProfile(dir);
-    const withDir = typeof skinsDir === 'string' && skinsDir.trim() !== ''
-      ? { ...profile, skinsDir: skinsDir.trim() }
-      : profile;
-    return { profile, ...skinFiles(dir, withDir) };
+    return skinFiles(dir);
+  }
+
+  /** 通过 filepicker 导入行为包/资源包文件夹（复制到 <project>/.mcdev/packs/<kind>）。 */
+  importPack(kind, sourceDir, projectDir) {
+    const dir = path.resolve(projectDir || this.projectDir);
+    if (kind !== 'behavior' && kind !== 'resource') throw new Error('kind 必须是 behavior 或 resource');
+    const result = importPack(dir, kind, sourceDir);
+    return { ...result, ...this.packCatalog(dir) };
+  }
+
+  /** 通过 filepicker 导入皮肤文件夹（复制 PNG 到 <project>/.mcdev/skins）。 */
+  importSkins(sourceDir, projectDir) {
+    const dir = path.resolve(projectDir || this.projectDir);
+    return importSkins(dir, sourceDir);
   }
 
   /** 从官方模板新建世界（绝不覆盖已有世界）。 */
@@ -295,15 +279,17 @@ export class NativeProvider {
   /** 预设集合 + 探测到的游戏路径（面板设置页用）。 */
   presets(projectDir) {
     const dir = path.resolve(projectDir || this.projectDir);
-    const config = this.readConfig(dir);
     const state = this._ensurePresets(dir);
-    const game = discoverGame(config);
+    const game = discoverGame({});
     return {
       path: presetsPath(dir),
       state,
       detectedGameExe: game.exe || '',
       versions: game.versions || [],
       presetCount: state.presets.length,
+      catalog: packCatalog(dir),
+      skins: skinFiles(dir),
+      worlds: listWorlds(),
     };
   }
 
@@ -335,24 +321,22 @@ export class NativeProvider {
     return { path: written.path, state: written.state };
   }
 
-  /** 确保预设文件存在：旧 launch-profile 迁移 / 默认预设从工程可检索项生成。 */
+  /** 确保预设文件存在：默认预设从当前工程/客户端可检索项生成。 */
   _ensurePresets(projectDir) {
     const dir = path.resolve(projectDir || this.projectDir);
     const existing = readPresets(dir);
     if (existing !== null) return existing;
-    const config = this.readConfig(dir);
-    const game = discoverGame(config);
-    const legacy = readLaunchProfile(dir);
-    const skins = skinFiles(dir, legacy);
+    const game = discoverGame({});
+    const worlds = listWorlds();
+    const preferredWorld = worlds.find((world) => world.name === DEFAULT_WORLD_NAME) || worlds[0];
     const seed = {
       gameExe: game.exe || '',
-      world: legacy.world || '',
-      skin: legacy.skin || '',
-      slim: legacy.slim === true,
-      skinsDir: legacy.skinsDir || (skins.files.length > 0 ? skins.files[0].dir : ''),
+      world: preferredWorld !== undefined ? preferredWorld.name : DEFAULT_WORLD_NAME,
+      // 游戏必须有一个有效皮肤才会进存档；默认预设从本机已有皮肤里挑一个。
+      skin: discoverSkinFile(dir),
+      slim: false,
     };
-    const legacyUsed = legacy.world !== '' || legacy.skin !== '' || legacy.behaviorPacks !== null || legacy.resourcePacks !== null;
-    const preset = legacyUsed ? presetFromLegacyProfile(legacy, seed) : defaultPreset(seed);
+    const preset = defaultPreset(seed);
     const state = normalizePresets({ activeId: preset.id, presets: [preset] });
     writePresets(dir, state);
     return state;
@@ -361,25 +345,16 @@ export class NativeProvider {
   /** 发现游戏 exe / 版本 / 开发世界 / bridge 包状态。 */
   discover(projectDir) {
     const dir = path.resolve(projectDir || this.projectDir);
-    let config = null;
-    let configError = '';
-    try {
-      config = this.readConfig(dir);
-    } catch (error) {
-      configError = error.message;
-    }
-    const configSafe = config || {};
-    const game = discoverGame(configSafe);
+    const game = discoverGame({});
     const presetState = readPresets(dir);
     const activePreset = presetState !== null ? findPreset(presetState, '') : null;
-    const hostLaunch = activePreset !== null ? resolveHostLaunch(activePreset, configSafe) : { world: '' };
-    const effectiveWorld = worldNameOf(configSafe, { world: hostLaunch.world });
-    const worldDir = worldDirOf(dir, { ...configSafe, world_folder_name: effectiveWorld });
+    const hostLaunch = activePreset !== null ? resolveHostLaunch(activePreset) : { world: DEFAULT_WORLD_NAME };
+    const effectiveWorld = hostLaunch.world || DEFAULT_WORLD_NAME;
+    const worldDir = worldDirOf(dir, { world_folder_name: effectiveWorld });
     const packDir = bridgePackDir();
     const result = {
       provider: PROVIDER_NAME,
       projectDir: dir,
-      configPath: configPathOf(dir),
       gameExe: game.exe,
       gameVersion: game.version,
       versions: game.versions,
@@ -406,8 +381,6 @@ export class NativeProvider {
       behaviorPacksDir: behaviorPacksDir(),
       appRoot: path.dirname(officialLogsDir()),
     };
-    if (config) result.config = config;
-    if (configError) result.configError = configError;
     // 未运行时缓存
     if (!this._gamePid || !isProcessAlive(this._gamePid)) {
       this._gameExe = game.exe || '';
@@ -431,7 +404,7 @@ export class NativeProvider {
       ready: this._phase === 'ready',
       readyCount: this._readyCount,
       projectDir: this.projectDir,
-      configPath: configPathOf(this.projectDir),
+      configPath: undefined,
       gameExe: this._gameExe || undefined,
       gameVersion: this._gameVersion || undefined,
       world: {
@@ -500,26 +473,20 @@ export class NativeProvider {
 
     const waitMs = options.waitMs === undefined || options.waitMs === null ? 0 : Math.max(0, Number(options.waitMs) || 0);
     this._notes = [];
-    const config = this.readConfig(dir);
 
-    // 启动预设：游戏路径 + host（世界/包/皮肤）+ guest（仅皮肤）。
-    // 预设先于游戏发现解析：预设可以指定自己的 exe（不同机器安装位置可能不同）。
+    // 启动预设：完全自包含（游戏路径 + host 世界/包/皮肤 + guest 皮肤），不读取 .mcdev.json。
     const presetState = this._ensurePresets(dir);
     const requestedPresetId = typeof options.presetId === 'string' ? options.presetId : '';
     const preset = findPreset(presetState, requestedPresetId) || findPreset(presetState, '');
     if (preset === null || preset === undefined) throw new Error('找不到可用的启动预设：请先在设置里创建一个');
-    const host = resolveHostLaunch(preset, config);
-    const worldName = worldNameOf(config, {
-      world: typeof options.world === 'string' && options.world.trim() !== '' ? options.world : host.world,
-    });
-    const skinInfo = config.skin_info && typeof config.skin_info === 'object' ? config.skin_info : {};
+    const host = resolveHostLaunch(preset);
+    const worldName = typeof options.world === 'string' && options.world.trim() !== '' ? options.world.trim() : host.world;
     const launchConfig = {
-      ...config,
       world_folder_name: worldName,
       world_name: worldName,
       skin_info: {
-        skin: options.skin !== undefined ? String(options.skin) : String(host.skin || skinInfo.skin || ''),
-        slim: options.slim !== undefined ? options.slim === true : host.skin !== '' ? host.slim === true : Boolean(skinInfo.slim),
+        skin: options.skin !== undefined ? String(options.skin) : String(host.skin || ''),
+        slim: options.slim !== undefined ? options.slim === true : host.slim === true,
       },
     };
     this._worldName = worldName;
@@ -527,7 +494,7 @@ export class NativeProvider {
     this._presetName = preset.name;
     this._guestCount = Array.isArray(preset.guests) ? preset.guests.length : 0;
 
-    let game = discoverGame(config);
+    let game = discoverGame({});
     if (preset.gameExe !== '') {
       if (!fs.existsSync(preset.gameExe)) {
         throw new Error(`预设「${preset.name}」的游戏路径不存在：${preset.gameExe}（请在设置页修改该预设的游戏路径）`);
@@ -536,9 +503,7 @@ export class NativeProvider {
       game = { ...game, exe: preset.gameExe, version: match ? match[1] : game.version };
     }
     if (!game.exe) {
-      throw new Error(
-        '找不到 Minecraft.Windows.exe：请在预设里填写游戏路径，或在 .mcdev.json 的 game_executable_path 指定完整路径。',
-      );
+      throw new Error('找不到 Minecraft.Windows.exe：请在预设里填写游戏路径（设置页的「游戏路径」）。');
     }
     this._gameExe = game.exe;
     this._gameVersion = game.version || '';
@@ -579,7 +544,19 @@ export class NativeProvider {
       if (this._guestCount > 0) {
         this._notes.push(`[dsh] 预设包含 ${this._guestCount} 个 guest 启动项（本次只启动 host；guest 自动拉起等待联机方案）`);
       }
-      if (launchConfig.skin_info.skin !== '') this._notes.push(`[dsh] 皮肤：${launchConfig.skin_info.skin}（slim=${launchConfig.skin_info.slim}）`);
+      if (launchConfig.skin_info.skin === '') {
+        throw new Error('预设未选择皮肤：请先在设置页「导入皮肤文件夹」并选择一个皮肤（游戏需要有效皮肤才会进入存档）');
+      }
+      if (launchConfig.skin_info.skin !== '') {
+        const skinFile = launchConfig.skin_info.skin;
+        if (!fs.existsSync(skinFile)) {
+          throw new Error(`皮肤文件不存在：${skinFile}（请在设置页重新导入皮肤）`);
+        }
+        if (!isPngFile(skinFile)) {
+          throw new Error(`皮肤文件不是有效的 PNG：${skinFile}（请重新导入皮肤文件夹）`);
+        }
+        this._notes.push(`[dsh] 皮肤：${skinFile}（slim=${launchConfig.skin_info.slim}）`);
+      }
 
       // 2.5) 外部实例检查：世界锁只约束本插件，外部客户端（MC Studio / 手动开的 ModPC）不检查它。
       // 同一开发世界被另一个客户端打开时断开启动，避免并发写坏世界 DB。
@@ -592,7 +569,7 @@ export class NativeProvider {
       }
 
       // 3) 可选包清单：host 预设的白名单（null = 工程全部），解析成实际要附加的 uuid。
-      const catalog = packCatalog(dir, launchConfig);
+      const catalog = packCatalog(dir);
       selectedPacks = resolveSelectedPacks(catalog, {
         behaviorPacks: options.behaviorPacks !== undefined ? options.behaviorPacks : host.behaviorPacks,
         resourcePacks: options.resourcePacks !== undefined ? options.resourcePacks : host.resourcePacks,

@@ -27,7 +27,7 @@ const SECTION_NAME = 'dsh-mcdev/minecraft'
 const SKILL_NAME = 'minecraft-mod-dev'
 const SERVICE_KEY = 'mcdev'
 /** Code version surfaced by `action: "help"`; bump with `package.json`. */
-const CODE_VERSION = '0.7.1'
+const CODE_VERSION = '0.8.0'
 
 /** Actions shared by the command and the agent tool. */
 const ACTIONS = [
@@ -45,11 +45,12 @@ const ACTIONS = [
   'wait',
   'docs_search',
   'docs_read',
-  'config',
   'worlds',
   'packs',
   'skins',
   'world-create',
+  'pack-import',
+  'skin-import',
   'presets',
   'preset-save',
   'preset-delete',
@@ -70,11 +71,12 @@ const ACTION_HELP = [
   'wait [timeoutMs] — 等待游戏进入存档（start 之后用，不重新启动）',
   'docs_search {query} — 检索内置网易 ModSDK / 官方教程语料',
   'docs_read {path, offset} — 读取一篇文档正文',
-  'config [patch] — 读取或合并修改 .mcdev.json（先备份）',
   'worlds — 列出可选世界与当前生效世界',
   'packs — 列出可选行为包 / 资源包与当前选择',
   'skins [skinsDir] — 列出可选皮肤 PNG 与当前皮肤',
   'world-create {worldName, worldFrom?} — 从官方模板或已有世界新建世界（不覆盖已有）',
+  'pack-import {kind, sourceDir} — 导入行为包/资源包文件夹（filepicker 选择的目录，复制到 <工程>/.mcdev/packs）',
+  'skin-import {sourceDir} — 导入皮肤文件夹（复制其中的 PNG 到 <工程>/.mcdev/skins）',
   'presets — 预设集合（游戏路径 + host 世界/包/皮肤 + guest 皮肤）与可选清单（面板设置页用）',
   'preset-save {preset} — 新增/更新一个启动预设（按 id）',
   'preset-delete {presetId} — 删除一个启动预设（至少保留一个）',
@@ -82,7 +84,7 @@ const ACTION_HELP = [
 ].join('\n')
 
 const SYSTEM_PROMPT = [
-  'Minecraft (网易我的世界) 开发：任务涉及 Mod/Addon、ModSDK、行为包/资源包、.mcdev.json、JSON UI 或真实游戏验证时，使用 `mcdev` 工具。',
+  'Minecraft (网易我的世界) 开发：任务涉及 Mod/Addon、ModSDK、行为包/资源包、JSON UI 或真实游戏验证时，使用 `mcdev` 工具。',
   '写 ModSDK 代码前先用 `docs_search` 查官方资料（离线语料含 ModAPI/网易教程/QuMod/SAPI），不要凭记忆猜接口；改完代码用 `reload` + `logs` 验证，日志和错误优先于截图。',
   '需要换世界/附加包/皮肤或游戏路径时：用 `presets` 读取、`preset-save` 保存启动预设（含 gameExe、host 的世界/包/皮肤、guest 皮肤；文件在 <project>/.mcdev/launch-presets.json，不改 .mcdev.json），`preset-active` 选当前预设；之后 `start` 自动沿用。',
   '`start` 可能要 1–3 分钟，`stop` 会结束游戏进程，执行前确认用户意图。',
@@ -98,7 +100,7 @@ const SKILL_BASE = `# Minecraft 网易版模组开发（dsh-mcdev）
 ${ACTION_HELP}
 
 ## 闭环
-1. \`discover\` 确认游戏版本 / 开发世界 / 工程目录；\`config\` 可读改 .mcdev.json（会自动备份）。
+1. \`discover\` 确认游戏版本 / 开发世界 / 工程目录；\`presets\` 查看/编辑启动预设（世界、包、皮肤、游戏路径）。
 2. \`start\`（首次会生成开发测试世界），等 \`status\` 里 ready=true。
 3. 改 Mod 代码（Python 2.7 语法；服务端 \`mod.server\`、客户端 \`mod.client\`）。
 4. \`reload {"kind":"scripts"}\` 或 \`reload {"kind":"game"}\`；用 \`logs\` 的游标增量看报错。
@@ -455,23 +457,15 @@ class McDevService {
     const projectDir = resolveProjectDir(this.ctx, settings, agent)
     const timeoutMs = intOf(args.timeoutMs, 60000)
     try {
-      if (action === 'discover' || action === 'config') {
+      if (action === 'discover') {
         const bridge = await this.ensureBridge(projectDir)
-        if (action === 'discover') {
-          const discovery = await bridge.discover(projectDir)
-          return {
-            ok: true,
-            provider: this.providerName,
-            providerWarning: this.providerWarning !== '' ? this.providerWarning : undefined,
-            ...discovery,
-          }
+        const discovery = await bridge.discover(projectDir)
+        return {
+          ok: true,
+          provider: this.providerName,
+          providerWarning: this.providerWarning !== '' ? this.providerWarning : undefined,
+          ...discovery,
         }
-        if (args.patch !== undefined && args.patch !== null) {
-          const next = await bridge.updateConfig(args.patch, projectDir)
-          return { ok: true, configPath: path.join(projectDir, '.mcdev.json'), config: next }
-        }
-        const config = await bridge.readConfig(projectDir)
-        return { ok: true, configPath: path.join(projectDir, '.mcdev.json'), config }
       }
 
       const bridge = await this.ensureBridge(projectDir)
@@ -483,8 +477,19 @@ class McDevService {
         return { ok: true, ...(await bridge.packCatalog(projectDir)) }
       }
       if (action === 'skins') {
-        const skinsDir = typeof args.skinsDir === 'string' ? args.skinsDir : ''
-        return { ok: true, ...(await bridge.skins(projectDir, skinsDir)) }
+        return { ok: true, ...(await bridge.skins(projectDir)) }
+      }
+      if (action === 'pack-import') {
+        const kind = args.kind === 'resource' ? 'resource' : args.kind === 'behavior' ? 'behavior' : ''
+        if (kind === '') return { ok: false, error: '缺少 kind：请选择导入行为包（behavior）还是资源包（resource）' }
+        const sourceDir = typeof args.sourceDir === 'string' ? args.sourceDir.trim() : ''
+        if (sourceDir === '') return { ok: false, error: '缺少 sourceDir：请用 filepicker 选择要导入的文件夹' }
+        return { ok: true, ...(await bridge.importPack(kind, sourceDir, projectDir)) }
+      }
+      if (action === 'skin-import') {
+        const sourceDir = typeof args.sourceDir === 'string' ? args.sourceDir.trim() : ''
+        if (sourceDir === '') return { ok: false, error: '缺少 sourceDir：请用 filepicker 选择皮肤文件夹' }
+        return { ok: true, ...(await bridge.importSkins(sourceDir, projectDir)) }
       }
       if (action === 'world-create') {
         const worldName = typeof args.worldName === 'string' && args.worldName.trim() !== ''
@@ -498,11 +503,10 @@ class McDevService {
         return { ok: true, created, ...worlds }
       }
       if (action === 'presets') {
-        const skinsDir = typeof args.skinsDir === 'string' ? args.skinsDir : ''
         const data = await bridge.presets(projectDir)
         const worlds = await bridge.listWorlds(projectDir)
         const catalog = await bridge.packCatalog(projectDir)
-        const skins = await bridge.skins(projectDir, skinsDir)
+        const skins = await bridge.skins(projectDir)
         return {
           ok: true,
           path: data.path,
@@ -514,7 +518,8 @@ class McDevService {
           behavior: catalog.behavior,
           resource: catalog.resource,
           warnings: catalog.warnings,
-          skinsDirs: skins.dirs,
+          skinsDir: skins.dir,
+          skinsExists: skins.exists === true,
           skins: skins.files,
         }
       }
@@ -704,8 +709,6 @@ function renderPayload(action, payload) {
         .join('\n')
     case 'discover':
       return asJsonText(payload)
-    case 'config':
-      return asJsonText(payload.config)
     case 'worlds': {
       const worlds = Array.isArray(payload.worlds) ? payload.worlds : []
       if (worlds.length === 0) return '没有找到现有世界；用 world-create 新建，或先用 MC Studio 创建一次。'
@@ -730,11 +733,15 @@ function renderPayload(action, payload) {
     }
     case 'skins': {
       const files = Array.isArray(payload.files) ? payload.files : []
-      const dirs = Array.isArray(payload.dirs) ? payload.dirs : []
-      const dirLines = dirs.map((item) => `${item.exists ? '' : '(不存在) '}${item.dir}`)
-      const fileLines = files.map((file) => `${file.path}`)
-      return `皮肤目录：\n${dirLines.join('\n') || '（无）'}\n\n可选皮肤 PNG：\n${fileLines.join('\n') || '（无）'}\n\n当前：${payload.profile && payload.profile.skin ? payload.profile.skin : '默认皮肤'}`
+      const dir = typeof payload.dir === 'string' ? payload.dir : ''
+      return `皮肤目录：${dir || '（无）'}${payload.exists === false ? '（不存在，可导入皮肤文件夹）' : ''}\n可选皮肤 PNG：\n${files.map((file) => file.path).join('\n') || '（无）'}`
     }
+    case 'pack-import': {
+      const pack = payload.pack || {}
+      return `已导入${pack.kind === 'resource' ? '资源包' : '行为包'}：${pack.name || ''}\n${pack.dir || ''}`
+    }
+    case 'skin-import':
+      return `已导入皮肤 ${Array.isArray(payload.files) ? payload.files.length : 0} 个\n${payload.dir || ''}`
     case 'presets': {
       const state = payload.state || {}
       const presets = Array.isArray(state.presets) ? state.presets : []
@@ -742,7 +749,7 @@ function renderPayload(action, payload) {
         const host = preset.host || {}
         const guests = Array.isArray(preset.guests) ? preset.guests.length : 0
         const active = preset.id === state.activeId ? '*' : ' '
-        return `${active} ${preset.name}  [${preset.id}]  exe=${preset.gameExe || '(自动探测)'}  world=${host.world || '(跟随 .mcdev.json)'}  guests=${guests}`
+        return `${active} ${preset.name}  [${preset.id}]  exe=${preset.gameExe || '(自动探测)'}  world=${host.world || '(默认世界)'}  guests=${guests}`
       })
       return `启动预设（* = 当前激活）：\n${lines.join('\n') || '（无）'}\n\n游戏路径（探测到）：${payload.detectedGameExe || '(未找到)'}`
     }
@@ -877,10 +884,6 @@ export function applyMcdev(ctx, config) {
             limit: { type: 'number', description: 'logs/docs_search: maximum entries to return.' },
             errors: { type: 'boolean', description: 'logs: only stderr-style error lines.' },
             grep: { type: 'string', description: 'logs: plain-text filter.' },
-            patch: {
-              type: 'object',
-              description: 'config: partial .mcdev.json merged and written back (a .bak is kept).',
-            },
             world: {
               type: 'string',
               description: 'start: world folder name to launch (defaults to the active preset).',
@@ -913,7 +916,16 @@ export function applyMcdev(ctx, config) {
             },
             skin: { type: 'string', description: 'start: absolute path of a skin PNG (empty = default skin).' },
             slim: { type: 'boolean', description: 'start: use the slim (3-pixel) player model.' },
-            skinsDir: { type: 'string', description: 'skins/presets: extra directory to scan for skin PNG files.' },
+            skinsDir: { type: 'string', description: 'Deprecated: skins are imported through the settings page file picker.' },
+            kind: {
+              type: 'string',
+              enum: ['behavior', 'resource'],
+              description: 'pack-import: whether the selected folder is a behavior pack or a resource pack.',
+            },
+            sourceDir: {
+              type: 'string',
+              description: 'pack-import/skin-import: absolute folder path chosen through the file picker.',
+            },
             timeoutMs: { type: 'number', description: 'exec/reload/screenshot/jsonui/input/mcp: operation timeout.' },
           },
           required: ['action'],
@@ -949,7 +961,7 @@ export function applyMcdev(ctx, config) {
         description:
           'NetEase Minecraft (网易我的世界) mod development with the dsh-mcdev plugin: launch the ModPC dev client, execute Python in the game, reload scripts, read logs, screenshot, inspect JSON UI, and search the bundled ModSDK docs.',
         whenToUse:
-          'Load when the task touches a NetEase Minecraft Mod/Addon, ModSDK Python code, behavior/resource packs, .mcdev.json, JSON UI, or real in-game verification on this machine.',
+          'Load when the task touches a NetEase Minecraft Mod/Addon, ModSDK Python code, behavior/resource packs, JSON UI, or real in-game verification on this machine.',
         content: skillText(settings),
         invocation: { modelInvocable: true, userInvocable: false },
         source: 'runtime',
@@ -1027,6 +1039,8 @@ function optionsToArgs(parsed) {
   const resourcePacks = splitPackList(options['resource-packs'] !== undefined ? options['resource-packs'] : options.resourcePacks)
   if (resourcePacks !== undefined) args.resourcePacks = resourcePacks
   push('skin', typeof options.skin === 'string' ? options.skin : undefined)
+  push('kind', typeof options.kind === 'string' ? options.kind : undefined)
+  push('sourceDir', typeof options.source === 'string' ? options.source : undefined)
   push('skinsDir', typeof options['skins-dir'] === 'string' ? options['skins-dir'] : undefined)
   if (options.slim !== undefined) args.slim = flagOf(options.slim)
   // Presets: id selection plus an inline preset JSON object.
@@ -1064,6 +1078,8 @@ function optionsToArgs(parsed) {
   if (args['behavior-packs'] !== undefined && args.behaviorPacks === undefined) args.behaviorPacks = splitPackList(args['behavior-packs'])
   if (args['resource-packs'] !== undefined && args.resourcePacks === undefined) args.resourcePacks = splitPackList(args['resource-packs'])
   if (args['skins-dir'] !== undefined && args.skinsDir === undefined) args.skinsDir = args['skins-dir']
+  if (args['source-dir'] !== undefined && args.sourceDir === undefined) args.sourceDir = args['source-dir']
+  if (typeof args.source === 'string' && args.sourceDir === undefined) args.sourceDir = args.source
   if (args['preset-id'] !== undefined && args.presetId === undefined) args.presetId = args['preset-id']
   if (typeof args.preset === 'string' && args.preset !== '') {
     try {
@@ -1077,6 +1093,8 @@ function optionsToArgs(parsed) {
   delete args['behavior-packs']
   delete args['resource-packs']
   delete args['skins-dir']
+  delete args['source-dir']
+  delete args.source
   delete args['preset-id']
   return args
 }
@@ -1103,8 +1121,6 @@ function commandVerbToAction(verb, positionals, args) {
       return 'input'
     case 'wait':
       return 'wait'
-    case 'config':
-      return 'config'
     case 'discover':
       return 'discover'
     case 'status':
@@ -1136,6 +1152,11 @@ function commandVerbToAction(verb, positionals, args) {
     case 'new-world':
       if (rest !== '' && args.worldName === undefined) args.worldName = rest
       return 'world-create'
+    case 'pack-import':
+      if (rest !== '' && args.kind === undefined) args.kind = rest
+      return 'pack-import'
+    case 'skin-import':
+      return 'skin-import'
     case 'game-logs':
     case 'game_logs':
       return 'game_logs'

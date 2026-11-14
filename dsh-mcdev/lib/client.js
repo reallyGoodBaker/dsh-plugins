@@ -226,6 +226,52 @@ body[data-ds-dark-theme] .mcd-root{
 .mcd-check-name{flex:1 1 auto;min-width:0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mcd-badge{flex:none;padding:1px 6px;border-radius:var(--mcd-radius-full);background:var(--mcd-surface-container-highest);color:var(--mcd-on-surface-variant);font-size:10px}
 .mcd-skin-list{display:flex;flex-wrap:wrap;gap:4px;max-height:104px;overflow:auto}
+.mcd-settings{overflow:hidden}
+.mcd-topbar{display:flex;align-items:center;gap:2px;flex:none;padding:2px 0 6px;border-bottom:1px solid var(--mcd-outline-variant)}
+.mcd-topbar-title{flex:1 1 auto;min-width:0;padding-left:6px;font-size:16px;font-weight:500;letter-spacing:.15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcd-scroll{flex:1 1 auto;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:10px;padding:10px 2px 4px}
+.mcd-card{display:flex;flex-direction:column;gap:10px;flex:none;padding:12px;border-radius:var(--mcd-radius-lg);background:var(--mcd-surface-container-high)}
+.mcd-card-head{display:flex;align-items:center;gap:8px;min-height:32px}
+.mcd-card-title{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;letter-spacing:.1px}
+.mcd-card-title svg{width:18px;height:18px;fill:var(--mcd-on-surface-variant)}
+.mcd-field{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1 1 auto}
+.mcd-field-label{font-size:11px;font-weight:500;letter-spacing:.4px;color:var(--mcd-on-surface-variant);padding-left:2px}
+.mcd-field-control{width:100%;min-width:0;min-height:48px;padding:12px;border:1px solid var(--mcd-outline);border-radius:var(--mcd-radius-md);background:transparent;color:var(--mcd-on-surface);font-family:inherit;font-size:13px;line-height:1.3}
+.mcd-field-control:focus{outline:2px solid var(--mcd-primary);outline-offset:-1px;border-color:transparent}
+.mcd-field-control[readonly]{color:var(--mcd-on-surface-variant)}
+.mcd-field-row{display:flex;align-items:flex-end;gap:6px;min-width:0}
+.mcd-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:none;height:40px;padding:0 18px;border:1px solid transparent;border-radius:var(--mcd-radius-full);background:transparent;color:var(--mcd-primary);font-family:inherit;font-size:13px;font-weight:500;letter-spacing:.1px;cursor:pointer;transition:background .15s ease}
+.mcd-btn svg{width:18px;height:18px;fill:currentColor}
+.mcd-btn[data-variant=filled]{background:var(--mcd-primary);color:var(--mcd-on-primary)}
+.mcd-btn[data-variant=tonal]{background:var(--mcd-primary-container);color:var(--mcd-on-primary-container)}
+.mcd-btn[data-variant=outlined]{border-color:var(--mcd-outline);color:var(--mcd-primary)}
+.mcd-btn:disabled{opacity:.38;cursor:not-allowed}
+@media (hover:hover){
+  .mcd-btn:not(:disabled):hover{background:var(--mcd-hover)}
+  .mcd-btn[data-variant=filled]:not(:disabled):hover{background:color-mix(in srgb,var(--mcd-primary) 88%,#000)}
+  .mcd-btn[data-variant=tonal]:not(:disabled):hover{background:var(--mcd-primary-container)}
+}
+.mcd-switch{position:relative;display:inline-flex;align-items:center;gap:10px;min-height:32px;cursor:pointer;user-select:none}
+.mcd-switch input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.mcd-switch-track{position:relative;flex:none;width:48px;height:28px;border:2px solid var(--mcd-outline);border-radius:14px;background:var(--mcd-surface-container-highest);transition:background .15s ease,border-color .15s ease}
+.mcd-switch-thumb{position:absolute;top:50%;left:4px;width:16px;height:16px;border-radius:50%;background:var(--mcd-outline);transform:translateY(-50%);transition:left .15s ease,width .15s ease,height .15s ease,background .15s ease}
+.mcd-switch input:checked + .mcd-switch-track{background:var(--mcd-primary);border-color:var(--mcd-primary)}
+.mcd-switch input:checked + .mcd-switch-track .mcd-switch-thumb{left:calc(100% - 22px);width:20px;height:20px;background:var(--mcd-on-primary)}
+.mcd-switch input:focus-visible + .mcd-switch-track{outline:2px solid var(--mcd-focus);outline-offset:2px}
+.mcd-switch-label{font-size:13px;color:var(--mcd-on-surface)}
+.mcd-listitem{display:flex;align-items:center;gap:10px;min-height:48px;padding:4px;border-radius:var(--mcd-radius-md)}
+.mcd-avatar{display:grid;place-items:center;flex:none;width:36px;height:36px;border-radius:50%;background:var(--mcd-primary-container);color:var(--mcd-on-primary-container);font-size:13px;font-weight:600}
+.mcd-avatar svg{width:18px;height:18px;fill:currentColor}
+.mcd-divider{flex:none;height:1px;margin:2px 0;background:var(--mcd-outline-variant)}
+.mcd-helper{margin:0;font-size:12px;line-height:1.45;color:var(--mcd-on-surface-variant);overflow-wrap:anywhere}
+.mcd-group-label{font-size:12px;font-weight:500;letter-spacing:.2px;color:var(--mcd-on-surface-variant);margin-top:2px}
+.mcd-check{display:flex;align-items:center;gap:10px;min-height:36px;padding:2px 4px;border-radius:var(--mcd-radius-sm);cursor:pointer;user-select:none}
+@media (hover:hover){.mcd-check:hover{background:var(--mcd-hover)}}
+.mcd-check input{flex:none;width:18px;height:18px;margin:0;accent-color:var(--mcd-primary)}
+.mcd-check-name{flex:1 1 auto;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcd-chip{flex:none;display:inline-flex;align-items:center;max-width:100%;height:32px;padding:0 12px;border:1px solid var(--mcd-outline-variant);border-radius:var(--mcd-radius-full);background:transparent;color:var(--mcd-on-surface);font-family:inherit;font-size:12px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (hover:hover){.mcd-chip:hover{background:var(--mcd-hover)}}
+.mcd-chip[data-on=true]{background:var(--mcd-primary-container);color:var(--mcd-on-primary-container);border-color:transparent}
 .mcd-settings-bar{gap:6px;padding:4px 2px;border-bottom:1px solid var(--mcd-outline-variant)}
 .mcd-guest-row{gap:6px;flex-wrap:wrap}
 .mcd-guest-name{flex:0 0 auto;min-width:64px;font-size:12px;color:var(--mcd-on-surface-variant)}
@@ -266,7 +312,7 @@ body[data-ds-dark-theme] .mcd-root{
       resizePanel: 'Resize panel (drag or arrow keys)',
       configTab: 'Config',
       world: 'World',
-      worldDefault: 'Follow .mcdev.json',
+      worldDefault: 'Default dev world',
       newWorld: 'New world',
       newWorldPlaceholder: 'New world name…',
       create: 'Create',
@@ -277,6 +323,7 @@ body[data-ds-dark-theme] .mcd-root{
       skinsDirPlaceholder: 'Skin folder to scan (optional)',
       skinPathPlaceholder: 'Absolute path of a skin PNG',
       skinDefault: 'Default skin',
+      skinUnselected: 'Select a skin',
       slim: 'Slim model',
       selectAll: 'All',
       clearAll: 'None',
@@ -322,6 +369,17 @@ body[data-ds-dark-theme] .mcd-root{
       presetLoadFailed: 'Could not load the presets',
       presetSaveFailed: 'Could not save the preset',
       presetDeleteFailed: 'Could not delete the preset',
+      pickerUnavailable: 'Folder picker unavailable',
+      pickerFailed: 'Could not open the folder picker',
+      importFailed: 'Import failed',
+      packImported: 'Pack imported',
+      skinsImported: 'Skins imported',
+      importPacks: 'Import pack',
+      importSkins: 'Import skins',
+      gamePathDetected: 'Detected:',
+      chooseGameFolder: 'Choose game folder',
+      packSourceImported: 'imported',
+      presetActive: 'Active',
       logs: 'Logs',
       exec: 'Run code',
       docs: 'Docs',
@@ -388,7 +446,7 @@ body[data-ds-dark-theme] .mcd-root{
       resizePanel: '调整面板大小（拖拽或方向键）',
       configTab: '配置',
       world: '世界',
-      worldDefault: '跟随 .mcdev.json',
+      worldDefault: '默认开发世界',
       newWorld: '新建世界',
       newWorldPlaceholder: '新世界名…',
       create: '新建',
@@ -399,6 +457,7 @@ body[data-ds-dark-theme] .mcd-root{
       skinsDirPlaceholder: '要扫描的皮肤目录（可选）',
       skinPathPlaceholder: '皮肤 PNG 的绝对路径',
       skinDefault: '默认皮肤',
+      skinUnselected: '请选择皮肤（游戏必需）',
       slim: '纤细模型',
       selectAll: '全选',
       clearAll: '清空',
@@ -444,6 +503,17 @@ body[data-ds-dark-theme] .mcd-root{
       presetLoadFailed: '读取预设失败',
       presetSaveFailed: '保存预设失败',
       presetDeleteFailed: '删除预设失败',
+      pickerUnavailable: '文件夹选择器不可用',
+      pickerFailed: '无法打开文件夹选择器',
+      importFailed: '导入失败',
+      packImported: '包已导入',
+      skinsImported: '皮肤已导入',
+      importPacks: '导入包',
+      importSkins: '导入皮肤',
+      gamePathDetected: '探测到：',
+      chooseGameFolder: '选择游戏文件夹',
+      packSourceImported: '导入',
+      presetActive: '当前激活',
       logs: '日志',
       exec: '执行代码',
       docs: '文档检索',
@@ -870,7 +940,8 @@ body[data-ds-dark-theme] .mcd-root{
           behavior: [],
           resource: [],
           skins: [],
-          skinsDirs: [],
+          skinsDir: '',
+          skinsExists: false,
           draft: undefined,
           busy: false,
           savedAt: undefined,
@@ -984,6 +1055,7 @@ body[data-ds-dark-theme] .mcd-root{
       back: 'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z',
       delete: 'M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z',
       add: 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z',
+      folder: 'M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z',
       check: 'M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z',
       copy: 'M16 1H4a2 2 0 0 0-2 2v14h2V3h12zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11z',
       search:
@@ -1067,6 +1139,7 @@ body[data-ds-dark-theme] .mcd-root{
       const sessionId = props.sessionId;
       const remote = props.remote;
       const t = typeof props.t === 'function' ? props.t : (key) => key;
+      const pickDirectory = typeof props.pickDirectory === 'function' ? props.pickDirectory : undefined;
 
       const [view, setView] = React.useState(() => viewOf(sessionId));
       const [panelRect, setPanelRect] = React.useState(() => loadPanelRect());
@@ -1647,9 +1720,7 @@ body[data-ds-dark-theme] .mcd-root{
         const task = (async () => {
           commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: true, error: undefined } }));
           try {
-            const skinsDir = typeof options.skinsDir === 'string' ? options.skinsDir : '';
-            const suffix = skinsDir.trim() !== '' ? ' --skins-dir-b64=' + encodeArg(skinsDir.trim()) : '';
-            const result = await runCommand(sid, '/mcdev presets' + suffix + ' --json');
+            const result = await runCommand(sid, '/mcdev presets --json');
             const data = result.data;
             if (result.kind === 'error' || data === undefined || data.ok === false) {
               const message = data !== undefined && typeof data.error === 'string' && data.error !== ''
@@ -1667,25 +1738,30 @@ body[data-ds-dark-theme] .mcd-root{
             const selected = presets.find((preset) => preset.id === preferred)
               || presets.find((preset) => preset.id === activeId)
               || presets[0];
-            commit(sid, (snapshot) => ({
-              ...snapshot,
-              launch: {
-                ...snapshot.launch,
-                presetsPath: typeof data.path === 'string' ? data.path : '',
-                presets,
-                activeId,
-                selectedId: selected !== undefined ? selected.id : '',
-                detectedGameExe: typeof data.detectedGameExe === 'string' ? data.detectedGameExe : '',
-                worlds: Array.isArray(data.worlds) ? data.worlds : [],
-                behavior: Array.isArray(data.behavior) ? data.behavior : [],
-                resource: Array.isArray(data.resource) ? data.resource : [],
-                skins: Array.isArray(data.skins) ? data.skins : [],
-                skinsDirs: Array.isArray(data.skinsDirs) ? data.skinsDirs : [],
-                draft: clonePreset(selected),
-                busy: false,
-                error: undefined,
-              },
-            }));
+            commit(sid, (snapshot) => {
+              const current = snapshot.launch;
+              const keepDraft = options.keepDraft === true && current.draft !== undefined;
+              return {
+                ...snapshot,
+                launch: {
+                  ...current,
+                  presetsPath: typeof data.path === 'string' ? data.path : '',
+                  presets,
+                  activeId,
+                  selectedId: selected !== undefined ? selected.id : '',
+                  detectedGameExe: typeof data.detectedGameExe === 'string' ? data.detectedGameExe : '',
+                  worlds: Array.isArray(data.worlds) ? data.worlds : [],
+                  behavior: Array.isArray(data.behavior) ? data.behavior : [],
+                  resource: Array.isArray(data.resource) ? data.resource : [],
+                  skins: Array.isArray(data.skins) ? data.skins : [],
+                  skinsDir: typeof data.skinsDir === 'string' ? data.skinsDir : '',
+                  skinsExists: data.skinsExists === true,
+                  draft: keepDraft ? current.draft : clonePreset(selected),
+                  busy: false,
+                  error: undefined,
+                },
+              };
+            });
           } catch (caught) {
             const message = caught !== null && caught !== undefined && typeof caught.message === 'string' ? caught.message : '';
             commit(sid, (current) => ({
@@ -1842,6 +1918,71 @@ body[data-ds-dark-theme] .mcd-root{
         } finally {
           commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: false } }));
         }
+      };
+
+      /** Open the native folder picker (no path typing anywhere). */
+      const pickFolder = async () => {
+        if (pickDirectory === undefined) return { error: translate(t, 'pickerUnavailable') };
+        try {
+          const picked = await pickDirectory();
+          return typeof picked === 'string' && picked !== '' ? { path: picked } : {};
+        } catch (caught) {
+          const message = caught !== null && caught !== undefined && typeof caught.message === 'string' ? caught.message : '';
+          return { error: message !== '' ? message : translate(t, 'pickerFailed') };
+        }
+      };
+
+      /** Run one import command after a folder pick, then refresh the lists. */
+      const runImport = async (command, noteKey) => {
+        const sid = sessionId;
+        if (sid === undefined || sid === null || !remoteReady(remoteRef.current)) return;
+        const picked = await pickFolder();
+        if (picked.error !== undefined) {
+          commit(sid, (current) => ({ ...current, launch: { ...current.launch, error: picked.error } }));
+          return;
+        }
+        if (picked.path === undefined) return; // cancelled by the user
+        commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: true, error: undefined } }));
+        try {
+          const result = await runCommand(sid, command(picked.path));
+          const data = result.data;
+          if (result.kind === 'error' || data === undefined || data.ok === false) {
+            const message = data !== undefined && typeof data.error === 'string' && data.error !== ''
+              ? data.error
+              : messageOf(result, translate(t, 'importFailed'));
+            commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: false, error: message } }));
+            return;
+          }
+          flashNote(translate(t, noteKey));
+          await loadPresets(sid, { selectId: viewOf(sid).launch.selectedId, keepDraft: true });
+        } finally {
+          commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: false } }));
+        }
+      };
+
+      /** Import a behavior/resource pack folder chosen in the native picker. */
+      const importPackFolder = (kind) =>
+        runImport(
+          (source) => '/mcdev pack-import --kind ' + kind + ' --source-b64=' + encodeArg(source) + ' --json',
+          'packImported',
+        );
+
+      /** Import a skin folder (copies its PNG files into the project). */
+      const importSkinsFolder = () =>
+        runImport((source) => '/mcdev skin-import --source-b64=' + encodeArg(source) + ' --json', 'skinsImported');
+
+      /** Pick the game install folder and derive Minecraft.Windows.exe from it. */
+      const pickGameFolder = async () => {
+        const picked = await pickFolder();
+        if (picked.error !== undefined) {
+          commit(sessionId, (current) => ({ ...current, launch: { ...current.launch, error: picked.error } }));
+          return;
+        }
+        if (picked.path === undefined) return;
+        const base = picked.path.replace(/[\\/]+$/, '');
+        updateDraft((draft) => {
+          draft.gameExe = base + '\\Minecraft.Windows.exe';
+        });
       };
 
       React.useEffect(() => {
@@ -2287,10 +2428,9 @@ body[data-ds-dark-theme] .mcd-root{
       const settingsBar = settingsOpen
         ? h(
             'div',
-            { className: 'mcd-row mcd-settings-bar', key: 'settings-bar' },
+            { className: 'mcd-topbar', key: 'settings-bar' },
             h(IconButton, { key: 'back', icon: 'back', label: translate(t, 'back'), onClick: closeSettings }),
-            h('span', { className: 'mcd-section-title' }, translate(t, 'settingsTitle')),
-            h('div', { className: 'mcd-spacer', key: 'settings-spacer' }),
+            h('span', { className: 'mcd-topbar-title' }, translate(t, 'settingsTitle')),
             h(IconButton, {
               key: 'add-preset',
               icon: 'add',
@@ -2352,124 +2492,168 @@ body[data-ds-dark-theme] .mcd-root{
             : resourceEntries.filter((entry) => entry.source === 'project').map((entry) => entry.uuid),
         );
         const worlds = Array.isArray(launch.worlds) ? launch.worlds : [];
-        const skinFilesList = Array.isArray(launch.skins) ? launch.skins : [];
+        const skinsList = Array.isArray(launch.skins) ? launch.skins : [];
         const guests = draft !== undefined && Array.isArray(draft.guests) ? draft.guests : [];
-        const packList = (entries, selectedSet, onChange) =>
-          entries.length === 0
-            ? h('p', { className: 'mcd-empty' }, translate(t, 'noPacks'))
-            : h(
-                'div',
-                { className: 'mcd-pack-list' },
-                entries.map((entry) =>
-                  h(
-                    'label',
-                    { className: 'mcd-check', key: entry.uuid, title: typeof entry.dir === 'string' ? entry.dir : entry.uuid },
-                    h('input', {
-                      type: 'checkbox',
-                      checked: selectedSet.has(entry.uuid),
-                      onChange: (event) => {
-                        const next = new Set(selectedSet);
-                        if (event.target.checked) next.add(entry.uuid);
-                        else next.delete(entry.uuid);
-                        onChange(Array.from(next));
-                      },
-                    }),
-                    h('span', { className: 'mcd-check-name' }, typeof entry.name === 'string' && entry.name !== '' ? entry.name : entry.uuid),
-                    h('span', { className: 'mcd-badge' }, translate(t, entry.source === 'project' ? 'packSourceProject' : 'packSourceGlobal')),
+        const setHost = (patch) => updateDraft((next) => {
+          next.host = next.host && typeof next.host === 'object' ? next.host : {};
+          Object.assign(next.host, patch);
+        });
+        const field = (label, control, key) =>
+          h('label', { className: 'mcd-field', key }, h('span', { className: 'mcd-field-label' }, label), control);
+        const textField = (label, value, onChange, options = {}) =>
+          field(
+            label,
+            h('input', {
+              className: 'mcd-field-control',
+              type: 'text',
+              value: typeof value === 'string' ? value : '',
+              readOnly: options.readOnly === true,
+              placeholder: typeof options.placeholder === 'string' ? options.placeholder : '',
+              onChange: (event) => onChange(event.target.value),
+              onKeyDown: options.onKeyDown,
+            }),
+            options.key,
+          );
+        const selectField = (label, value, choices, onChange, key) =>
+          field(
+            label,
+            h(
+              'select',
+              {
+                className: 'mcd-field-control',
+                value: typeof value === 'string' ? value : '',
+                onChange: (event) => onChange(event.target.value),
+              },
+              choices.map((choice) => h('option', { key: choice.value, value: choice.value }, choice.label)),
+            ),
+            key,
+          );
+        const toneButton = (label, icon, onClick, options = {}) =>
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'mcd-btn',
+              'data-variant': options.variant || 'tonal',
+              disabled: options.disabled === true || launch.busy,
+              onClick,
+            },
+            h(Icon, { name: icon }),
+            label,
+          );
+        const switchRow = (label, checked, onChange, key) =>
+          h(
+            'label',
+            { className: 'mcd-switch', key },
+            h('input', { type: 'checkbox', checked: checked === true, onChange: (event) => onChange(event.target.checked) }),
+            h('span', { className: 'mcd-switch-track' }, h('span', { className: 'mcd-switch-thumb' })),
+            h('span', { className: 'mcd-switch-label' }, label),
+          );
+        const packList = (title, entries, selectedSet, kind, onListChange, key) =>
+          h(
+            'div',
+            { className: 'mcd-field', key },
+            h(
+              'div',
+              { className: 'mcd-field-row', style: { alignItems: 'center', justifyContent: 'space-between' } },
+              h('span', { className: 'mcd-field-label', style: { paddingLeft: '2px' } }, title),
+              toneButton(translate(t, 'importPacks'), 'add', () => void importPackFolder(kind), { variant: 'tonal' }),
+            ),
+            entries.length === 0
+              ? h('p', { className: 'mcd-helper' }, translate(t, 'noPacks'))
+              : h(
+                  'div',
+                  { className: 'mcd-pack-list' },
+                  entries.map((entry) =>
+                    h(
+                      'label',
+                      { className: 'mcd-check', key: entry.uuid, title: typeof entry.dir === 'string' ? entry.dir : entry.uuid },
+                      h('input', {
+                        type: 'checkbox',
+                        checked: selectedSet.has(entry.uuid),
+                        onChange: (event) => {
+                          const next = new Set(selectedSet);
+                          if (event.target.checked) next.add(entry.uuid);
+                          else next.delete(entry.uuid);
+                          onListChange(Array.from(next));
+                        },
+                      }),
+                      h('span', { className: 'mcd-check-name' }, typeof entry.name === 'string' && entry.name !== '' ? entry.name : entry.uuid),
+                      h('span', { className: 'mcd-badge' }, translate(t, entry.source === 'project' ? 'packSourceProject' : entry.source === 'imported' ? 'packSourceImported' : 'packSourceGlobal')),
+                    ),
                   ),
                 ),
-              );
-        const skinSelect = (value, onChange) =>
-          h(
-            'select',
-            { className: 'mcd-select', value: typeof value === 'string' ? value : '', onChange: (event) => onChange(event.target.value) },
-            h('option', { key: 'skin-default', value: '' }, translate(t, 'skinDefault')),
-            skinFilesList.map((file) => h('option', { key: file.path, value: file.path }, file.name)),
           );
+        const worldChoices = [
+          { value: '', label: translate(t, 'worldDefault') },
+          ...worlds.map((world) => ({
+            value: world.name,
+            label: world.name + (typeof world.levelName === 'string' && world.levelName !== world.name ? ' · ' + world.levelName : ''),
+          })),
+        ];
+        const sourceChoices = [
+          { value: '', label: translate(t, 'worldSourceTemplate') },
+          ...worlds.map((world) => ({ value: world.name, label: translate(t, 'worldSourceClone') + ' ' + world.name })),
+        ];
+        const skinChoices = [
+          { value: '', label: translate(t, 'skinDefault') },
+          ...skinsList.map((file) => ({ value: file.path, label: file.name })),
+        ];
+        const hostSkinChoices = [
+          { value: '', label: translate(t, 'skinUnselected') },
+          ...skinsList.map((file) => ({ value: file.path, label: file.name })),
+        ];
         content = h(
           'div',
-          { className: 'mcd-panel', role: 'region', key: 'panel-settings' },
+          { className: 'mcd-panel mcd-settings', role: 'region', key: 'panel-settings' },
           launch.error !== undefined && launch.error !== '' ? h('p', { className: 'mcd-error', key: 'preset-error', role: 'alert' }, launch.error) : null,
           draft === undefined
             ? h('p', { className: 'mcd-empty' }, launch.busy ? translate(t, 'busy') : translate(t, 'noPresets'))
             : h(
                 'div',
-                { className: 'mcd-form', key: 'preset-form' },
+                { className: 'mcd-scroll', key: 'settings-scroll' },
                 h(
                   'div',
-                  { className: 'mcd-config-section', key: 'section-preset' },
+                  { className: 'mcd-card', key: 'card-preset' },
                   h(
                     'div',
-                    { className: 'mcd-row mcd-config-head' },
-                    h(
-                      'select',
-                      {
-                        className: 'mcd-select',
-                        value: launch.selectedId,
-                        'aria-label': translate(t, 'presets'),
-                        onChange: (event) => void selectPreset(event.target.value),
-                      },
-                      launch.presets.map((preset) =>
-                        h('option', { key: preset.id, value: preset.id }, preset.name + (preset.id === launch.activeId ? '  ✓' : '')),
-                      ),
-                    ),
+                    { className: 'mcd-card-head' },
+                    h('span', { className: 'mcd-card-title' }, h(Icon, { name: 'settings' }), translate(t, 'presets')),
+                    h('span', { className: 'mcd-helper' }, launch.activeId === launch.selectedId ? translate(t, 'presetActive') : ''),
                   ),
-                  h('input', {
-                    className: 'mcd-input',
-                    value: typeof draft.name === 'string' ? draft.name : '',
-                    placeholder: translate(t, 'presetName'),
-                    'aria-label': translate(t, 'presetName'),
-                    onChange: (event) => updateDraft((next) => { next.name = event.target.value; }),
-                  }),
+                  selectField(
+                    translate(t, 'presets'),
+                    launch.selectedId,
+                    launch.presets.map((preset) => ({ value: preset.id, label: preset.name + (preset.id === launch.activeId ? '  ✓' : '') })),
+                    (value) => void selectPreset(value),
+                    'preset-select',
+                  ),
+                  textField(translate(t, 'presetName'), draft.name, (value) => updateDraft((next) => { next.name = value; }), { key: 'preset-name' }),
+                  textField(translate(t, 'gamePath'), draft.gameExe, () => {}, { key: 'game-path', readOnly: true, placeholder: translate(t, 'gamePathPlaceholder') }),
                   h(
                     'div',
-                    { className: 'mcd-row' },
-                    h('input', {
-                      className: 'mcd-input',
-                      value: typeof draft.gameExe === 'string' ? draft.gameExe : '',
-                      placeholder: launch.detectedGameExe !== '' ? launch.detectedGameExe : translate(t, 'gamePathPlaceholder'),
-                      'aria-label': translate(t, 'gamePath'),
-                      onChange: (event) => updateDraft((next) => { next.gameExe = event.target.value; }),
-                    }),
-                    h(IconButton, {
-                      key: 'use-detected',
-                      icon: 'refresh',
-                      label: translate(t, 'useDetectedPath'),
-                      disabled: launch.detectedGameExe === '' || launch.busy,
-                      onClick: () => updateDraft((next) => { next.gameExe = launch.detectedGameExe; }),
+                    { className: 'mcd-field-row', key: 'game-path-actions' },
+                    toneButton(translate(t, 'chooseGameFolder'), 'folder', () => void pickGameFolder(), { variant: 'outlined' }),
+                    toneButton(translate(t, 'useDetectedPath'), 'refresh', () => updateDraft((next) => { next.gameExe = launch.detectedGameExe; }), {
+                      variant: 'outlined',
+                      disabled: launch.detectedGameExe === '',
                     }),
                   ),
+                  launch.detectedGameExe !== ''
+                    ? h('p', { className: 'mcd-helper', key: 'game-path-hint' }, translate(t, 'gamePathDetected') + ' ' + launch.detectedGameExe)
+                    : null,
                 ),
                 h(
                   'div',
-                  { className: 'mcd-config-section', key: 'section-host' },
-                  h('span', { className: 'mcd-section-title' }, translate(t, 'host')),
-                  h(
-                    'select',
-                    {
-                      className: 'mcd-select',
-                      value: typeof host.world === 'string' ? host.world : '',
-                      'aria-label': translate(t, 'world'),
-                      onChange: (event) => updateDraft((next) => { next.host = next.host || {}; next.host.world = event.target.value; }),
-                    },
-                    h('option', { key: 'world-default', value: '' }, translate(t, 'worldDefault')),
-                    worlds.map((world) =>
-                      h(
-                        'option',
-                        { key: world.name, value: world.name },
-                        world.name + (typeof world.levelName === 'string' && world.levelName !== world.name ? ' · ' + world.levelName : '') + '  (' + world.behaviorPacks + '/' + world.resourcePacks + ')',
-                      ),
-                    ),
-                  ),
+                  { className: 'mcd-card', key: 'card-host' },
+                  h('div', { className: 'mcd-card-head' }, h('span', { className: 'mcd-card-title' }, h(Icon, { name: 'gamepad' }), translate(t, 'host'))),
+                  selectField(translate(t, 'world'), host.world, worldChoices, (value) => setHost({ world: value }), 'host-world'),
                   h(
                     'div',
-                    { className: 'mcd-row' },
-                    h('input', {
-                      className: 'mcd-input',
-                      value: newWorldName,
+                    { className: 'mcd-field-row', key: 'new-world-row' },
+                    textField(translate(t, 'newWorld'), newWorldName, setNewWorldName, {
+                      key: 'new-world',
                       placeholder: translate(t, 'newWorldPlaceholder'),
-                      'aria-label': translate(t, 'newWorld'),
-                      onChange: (event) => setNewWorldName(event.target.value),
                       onKeyDown: (event) => {
                         if (event.key === 'Enter') {
                           event.preventDefault();
@@ -2477,136 +2661,97 @@ body[data-ds-dark-theme] .mcd-root{
                         }
                       },
                     }),
-                    h(IconButton, {
-                      key: 'create-world',
-                      icon: 'add',
-                      label: translate(t, 'create'),
-                      disabled: launch.busy || newWorldName.trim() === '',
-                      onClick: () => void createPresetWorld(newWorldName, newWorldFrom),
+                    toneButton(translate(t, 'create'), 'add', () => void createPresetWorld(newWorldName, newWorldFrom), {
+                      variant: 'filled',
+                      disabled: newWorldName.trim() === '',
                     }),
                   ),
-                  h(
-                    'select',
-                    {
-                      className: 'mcd-select',
-                      value: newWorldFrom,
-                      'aria-label': translate(t, 'worldSource'),
-                      onChange: (event) => setNewWorldFrom(event.target.value),
-                    },
-                    h('option', { key: 'source-template', value: '' }, translate(t, 'worldSourceTemplate')),
-                    worlds.map((world) => h('option', { key: 'source-' + world.name, value: world.name }, translate(t, 'worldSourceClone') + ' ' + world.name)),
+                  selectField(translate(t, 'worldSource'), newWorldFrom, sourceChoices, setNewWorldFrom, 'new-world-source'),
+                  h('div', { className: 'mcd-divider', key: 'divider-packs' }),
+                  packList(
+                    translate(t, 'behaviorPacks'),
+                    behaviorEntries,
+                    behaviorSelected,
+                    'behavior',
+                    (list) => setHost({ behaviorPacks: list }),
+                    'host-behavior',
                   ),
-                  h('span', { className: 'mcd-section-title' }, translate(t, 'behaviorPacks') + ' · ' + behaviorSelected.size),
-                  packList(behaviorEntries, behaviorSelected, (list) => updateDraft((next) => { next.host = next.host || {}; next.host.behaviorPacks = list; })),
-                  h('span', { className: 'mcd-section-title' }, translate(t, 'resourcePacks') + ' · ' + resourceSelected.size),
-                  packList(resourceEntries, resourceSelected, (list) => updateDraft((next) => { next.host = next.host || {}; next.host.resourcePacks = list; })),
+                  packList(
+                    translate(t, 'resourcePacks'),
+                    resourceEntries,
+                    resourceSelected,
+                    'resource',
+                    (list) => setHost({ resourcePacks: list }),
+                    'host-resource',
+                  ),
+                  h('div', { className: 'mcd-divider', key: 'divider-skin' }),
+                  selectField(translate(t, 'skins'), host.skin, hostSkinChoices, (value) => setHost({ skin: value }), 'host-skin'),
                   h(
                     'div',
-                    { className: 'mcd-row' },
-                    h('span', { className: 'mcd-meta' }, translate(t, 'skins')),
-                    skinSelect(host.skin, (value) => updateDraft((next) => { next.host = next.host || {}; next.host.skin = value; })),
+                    { className: 'mcd-field-row', key: 'skin-actions' },
+                    toneButton(translate(t, 'importSkins'), 'add', () => void importSkinsFolder(), { variant: 'outlined' }),
+                    skinsList.length === 0 ? h('span', { className: 'mcd-helper' }, translate(t, 'noSkins')) : null,
                   ),
-                  h('input', {
-                    className: 'mcd-input',
-                    value: typeof host.skinsDir === 'string' ? host.skinsDir : '',
-                    placeholder: translate(t, 'skinsDirPlaceholder'),
-                    'aria-label': translate(t, 'skinsDir'),
-                    onChange: (event) => updateDraft((next) => { next.host = next.host || {}; next.host.skinsDir = event.target.value; }),
-                  }),
-                  h(IconButton, {
-                    key: 'reload-skins',
-                    icon: 'refresh',
-                    label: translate(t, 'refreshList'),
-                    disabled: launch.busy,
-                    onClick: () => void loadPresets(sessionId, { selectId: launch.selectedId, skinsDir: host.skinsDir }),
-                  }),
-                  h(
-                    'label',
-                    { className: 'mcd-check', key: 'host-slim' },
-                    h('input', {
-                      type: 'checkbox',
-                      checked: host.slim === true,
-                      onChange: (event) => updateDraft((next) => { next.host = next.host || {}; next.host.slim = event.target.checked; }),
-                    }),
-                    h('span', { className: 'mcd-check-name' }, translate(t, 'slim')),
-                  ),
+                  switchRow(translate(t, 'slim'), host.slim === true, (checked) => setHost({ slim: checked }), 'host-slim'),
                 ),
                 h(
                   'div',
-                  { className: 'mcd-config-section', key: 'section-guests' },
+                  { className: 'mcd-card', key: 'card-guests' },
                   h(
                     'div',
-                    { className: 'mcd-row mcd-config-head' },
-                    h('span', { className: 'mcd-section-title' }, translate(t, 'guests') + ' · ' + guests.length),
-                    h(IconButton, {
-                      key: 'add-guest',
-                      icon: 'add',
-                      label: translate(t, 'addGuest'),
-                      disabled: launch.busy || guests.length >= 7,
-                      onClick: () =>
-                        updateDraft((next) => {
-                          next.guests = Array.isArray(next.guests) ? next.guests : [];
-                          next.guests.push({ name: translate(t, 'guest') + ' ' + (next.guests.length + 1), skin: '', slim: false });
-                        }),
-                    }),
+                    { className: 'mcd-card-head' },
+                    h('span', { className: 'mcd-card-title' }, h(Icon, { name: 'client' }), translate(t, 'guests') + ' · ' + guests.length),
+                    toneButton(translate(t, 'addGuest'), 'add', () =>
+                      updateDraft((next) => {
+                        next.guests = Array.isArray(next.guests) ? next.guests : [];
+                        next.guests.push({ name: translate(t, 'guest') + ' ' + (next.guests.length + 1), skin: '', slim: false });
+                      }), { disabled: guests.length >= 7 }),
                   ),
                   guests.length === 0
-                    ? h('p', { className: 'mcd-empty' }, translate(t, 'noGuests'))
+                    ? h('p', { className: 'mcd-helper' }, translate(t, 'noGuests'))
                     : guests.map((guest, index) =>
                         h(
                           'div',
-                          { className: 'mcd-row mcd-guest-row', key: guest.id || 'guest-' + index },
-                          h('span', { className: 'mcd-guest-name' }, guest.name || translate(t, 'guest') + ' ' + (index + 1)),
-                          skinSelect(guest.skin, (value) =>
-                            updateDraft((next) => {
-                              next.guests[index].skin = value;
-                            }),
-                          ),
+                          { className: 'mcd-listitem', key: guest.id || 'guest-' + index, style: { flexDirection: 'column', alignItems: 'stretch' } },
                           h(
-                            'label',
-                            { className: 'mcd-check' },
-                            h('input', {
-                              type: 'checkbox',
-                              checked: guest.slim === true,
-                              onChange: (event) =>
+                            'div',
+                            { className: 'mcd-field-row', style: { alignItems: 'center' } },
+                            h('span', { className: 'mcd-avatar' }, String(index + 1)),
+                            h('span', { className: 'mcd-check-name', style: { flex: '1 1 auto' } }, guest.name || translate(t, 'guest') + ' ' + (index + 1)),
+                            h(IconButton, {
+                              key: 'remove-guest',
+                              icon: 'delete',
+                              label: translate(t, 'deleteGuest'),
+                              disabled: launch.busy,
+                              onClick: () =>
                                 updateDraft((next) => {
-                                  next.guests[index].slim = event.target.checked;
+                                  next.guests.splice(index, 1);
                                 }),
                             }),
-                            h('span', { className: 'mcd-check-name' }, translate(t, 'slim')),
                           ),
-                          h(IconButton, {
-                            key: 'remove-guest',
-                            icon: 'delete',
-                            label: translate(t, 'deleteGuest'),
-                            disabled: launch.busy,
-                            onClick: () =>
-                              updateDraft((next) => {
-                                next.guests.splice(index, 1);
-                              }),
-                          }),
+                          selectField(translate(t, 'skins'), guest.skin, skinChoices, (value) =>
+                            updateDraft((next) => {
+                              next.guests[index].skin = value;
+                            }), 'guest-skin-' + index),
+                          switchRow(translate(t, 'slim'), guest.slim === true, (checked) =>
+                            updateDraft((next) => {
+                              next.guests[index].slim = checked;
+                            }), 'guest-slim-' + index),
                         ),
                       ),
-                  h('p', { className: 'mcd-hint' }, translate(t, 'guestHint')),
+                  h('p', { className: 'mcd-helper', key: 'guest-hint' }, translate(t, 'guestHint')),
                 ),
-                h('p', { className: 'mcd-hint', key: 'preset-hint' }, translate(t, 'presetHint')),
                 h(
                   'div',
-                  { className: 'mcd-row', key: 'preset-save-row' },
-                  h(IconButton, {
-                    key: 'save-preset',
-                    icon: 'check',
-                    variant: 'filled',
-                    label: translate(t, 'save'),
-                    busy: launch.busy,
-                    disabled: launch.busy,
-                    onClick: () => void saveDraft(),
-                  }),
-                  h('span', { className: 'mcd-meta' }, launch.savedAt !== undefined ? translate(t, 'saved') : launch.presetsPath),
+                  { className: 'mcd-field-row', key: 'save-row', style: { justifyContent: 'space-between' } },
+                  toneButton(translate(t, 'save'), 'check', () => void saveDraft(), { variant: 'filled' }),
+                  h('span', { className: 'mcd-helper' }, launch.savedAt !== undefined ? translate(t, 'saved') : ''),
                 ),
+                h('p', { className: 'mcd-helper', key: 'preset-hint' }, translate(t, 'presetHint')),
               ),
         );
       } else if (expanded && tab === 'logs') {
+
         const logs = view.logs;
         const launcher = logs.launcher;
         const game = logs.game;
@@ -3027,8 +3172,9 @@ body[data-ds-dark-theme] .mcd-root{
 
     return {
       // Remote namespaces are injected property paths: declare `remote.commands` before
-      // reading it. The locale service owns the panel dictionaries.
-      inject: ['locale', 'remote', 'remote.commands', 'slots'],
+      // reading it. The locale service owns the panel dictionaries; `uiWorkspace`
+      // supplies the native directory picker used by the settings page.
+      inject: ['locale', 'remote', 'remote.commands', 'slots', 'uiWorkspace'],
       apply(ctx) {
         try {
           for (const node of globalThis.document.querySelectorAll('div')) {
@@ -3051,6 +3197,17 @@ body[data-ds-dark-theme] .mcd-root{
         const t = ctx.locale.bind(NS);
         BOOT_SEQ += 1;
         const bootKey = BOOT_SEQ;
+        const pickDirectory = () => {
+          try {
+            const workspace = ctx.uiWorkspace;
+            if (workspace !== undefined && workspace !== null && typeof workspace.pickDirectory === 'function') {
+              return workspace.pickDirectory();
+            }
+          } catch (error) {
+            // the picker service is optional; the panel shows a note when missing
+          }
+          return Promise.resolve(null);
+        };
         ctx.effect(
           () =>
             ctx.slots.inject(SLOT, () =>
@@ -3058,8 +3215,8 @@ body[data-ds-dark-theme] .mcd-root{
                 { name: SLOT, id: ENTRY_ID, order: ENTRY_ORDER, locale: NS },
                 (props) =>
                   typeof props.useSessions === 'function'
-                    ? h(McDevOverlayWithSessions, { ...props, remote: ctx.remote, t, bootKey })
-                    : h(McDevOverlayNoSessions, { ...props, remote: ctx.remote, t, bootKey }),
+                    ? h(McDevOverlayWithSessions, { ...props, remote: ctx.remote, t, bootKey, pickDirectory })
+                    : h(McDevOverlayNoSessions, { ...props, remote: ctx.remote, t, bootKey, pickDirectory }),
               ),
             ),
           'dsh-mcdev: floating console',

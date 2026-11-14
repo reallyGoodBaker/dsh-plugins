@@ -1,9 +1,9 @@
 // 启动预设（presets）：一个预设 = 一套「游戏路径 + 1 个 host + 若干 guest」的多人测试方案。
 //
-// 存在 <project>/.mcdev/launch-presets.json，不修改用户的 .mcdev.json。
-// - gameExe：该预设使用的 Minecraft.Windows.exe（不同机器安装位置可能不同；空 = 自动探测）
-// - host：可配置 世界 / 行为包 / 资源包 / 皮肤 / 纤细模型
-// - guests：只配置 皮肤 / 纤细模型（世界与包由 host 决定）
+// 存在 <project>/.mcdev/launch-presets.json，完全自包含（不读取 .mcdev.json）。
+// - gameExe：该预设使用的 Minecraft.Windows.exe（不同机器安装位置可能不同）
+// - host：世界 / 行为包 / 资源包 / 皮肤 / 纤细模型
+// - guests：只配置皮肤 / 纤细模型（世界与包由 host 决定）
 //
 // 只依赖 Node 内置模块。
 
@@ -25,7 +25,8 @@ function cleanString(value, maxLength) {
   return value.trim().slice(0, maxLength);
 }
 
-function cleanPackList(value) {
+/** 包白名单：null = 工程包全部；数组 = 精确选择。 */
+export function cleanPackList(value) {
   if (value === null || value === undefined) return null;
   if (!Array.isArray(value)) return null;
   const out = [];
@@ -50,14 +51,13 @@ function newId(prefix) {
 
 /** 归一化 host 配置。 */
 export function normalizeHost(raw) {
-  const base = { world: '', behaviorPacks: null, resourcePacks: null, skin: '', slim: false, skinsDir: '' };
+  const base = { world: '', behaviorPacks: null, resourcePacks: null, skin: '', slim: false };
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return base;
   base.world = cleanString(raw.world, 64);
   base.behaviorPacks = cleanPackList(raw.behaviorPacks);
   base.resourcePacks = cleanPackList(raw.resourcePacks);
   base.skin = cleanString(raw.skin, 1024);
   base.slim = raw.slim === true;
-  base.skinsDir = cleanString(raw.skinsDir, 1024);
   return base;
 }
 
@@ -89,7 +89,6 @@ export function normalizePreset(raw) {
   preset.host = normalizeHost(raw.host);
   const guests = Array.isArray(raw.guests) ? raw.guests.slice(0, MAX_GUESTS) : [];
   preset.guests = guests.map((guest, index) => normalizeGuest(guest, index));
-  // guest id 去重
   const seen = new Set();
   for (const guest of preset.guests) {
     if (seen.has(guest.id)) guest.id = newId('g');
@@ -98,12 +97,12 @@ export function normalizePreset(raw) {
   return preset;
 }
 
-/** 一份空的预设集合（含一个默认预设）。 */
+/** 一份空的预设集合。 */
 export function emptyPresets() {
   return { version: 1, activeId: '', presets: [] };
 }
 
-/** 归一化预设集合：保证至少一个预设、activeId 有效、host 存在。 */
+/** 归一化预设集合：保证 activeId 有效。 */
 export function normalizePresets(raw) {
   const out = emptyPresets();
   const source = raw !== null && typeof raw === 'object' && Array.isArray(raw.presets) ? raw.presets.slice(0, MAX_PRESETS) : [];
@@ -121,7 +120,7 @@ export function normalizePresets(raw) {
   return out;
 }
 
-/** 读取预设集合；文件缺失时返回 null（由调用方决定是否创建默认预设）。 */
+/** 读取预设集合；文件缺失时返回 null。 */
 export function readPresets(projectDir) {
   try {
     const file = presetsPath(projectDir);
@@ -152,8 +151,8 @@ export function writePresets(projectDir, state) {
 }
 
 /**
- * 构造内置默认预设：世界/包/皮肤取自当前工程能检索到的内容。
- * @param {{gameExe?:string, world?:string, skin?:string, slim?:boolean, skinsDir?:string}} seed
+ * 构造内置默认预设：世界/皮肤/gameExe 取自当前工程与客户端能检索到的内容。
+ * @param {{gameExe?:string, world?:string, skin?:string, slim?:boolean}} seed
  */
 export function defaultPreset(seed = {}) {
   return normalizePreset({
@@ -165,13 +164,12 @@ export function defaultPreset(seed = {}) {
       resourcePacks: null,
       skin: seed.skin || '',
       slim: seed.slim === true,
-      skinsDir: seed.skinsDir || '',
     },
     guests: [],
   });
 }
 
-/** 找到指定 id 的预设（找不到返回 null）。 */
+/** 找到指定 id 的预设（找不到返回 null；id 为空时返回当前激活预设）。 */
 export function findPreset(state, id) {
   if (state === null || state === undefined || !Array.isArray(state.presets)) return null;
   const wanted = cleanString(id, 40);
@@ -181,7 +179,7 @@ export function findPreset(state, id) {
   return state.presets.find((preset) => preset.id === wanted) || null;
 }
 
-/** upsert 一个预设；同名不合并，按 id 覆盖。 */
+/** upsert 一个预设；按 id 覆盖。 */
 export function upsertPreset(state, rawPreset) {
   const preset = normalizePreset(rawPreset);
   const next = normalizePresets(state);
@@ -192,7 +190,7 @@ export function upsertPreset(state, rawPreset) {
   return { state: normalizePresets(next), preset, created: index < 0 };
 }
 
-/** 删除一个预设；至少保留一个，删除 active 时回退到第一个。 */
+/** 删除一个预设；至少保留一个。 */
 export function removePreset(state, id) {
   const next = normalizePresets(state);
   const wanted = cleanString(id, 40);
@@ -213,39 +211,17 @@ export function setActivePreset(state, id) {
   return next;
 }
 
-/** 迁移旧版 launch-profile（v0.6）为默认预设。 */
-export function presetFromLegacyProfile(profile, seed = {}) {
-  const legacy = profile !== null && typeof profile === 'object' ? profile : {};
-  const preset = defaultPreset({
-    ...seed,
-    world: legacy.world || seed.world,
-    skin: legacy.skin || seed.skin,
-    slim: legacy.slim === true ? true : seed.slim,
-    skinsDir: legacy.skinsDir || seed.skinsDir,
-  });
-  if (legacy.behaviorPacks !== undefined && legacy.behaviorPacks !== null) {
-    preset.host.behaviorPacks = cleanPackList(legacy.behaviorPacks);
-  }
-  if (legacy.resourcePacks !== undefined && legacy.resourcePacks !== null) {
-    preset.host.resourcePacks = cleanPackList(legacy.resourcePacks);
-  }
-  return preset;
-}
-
-/** 从预设解析 host 启动参数（未设置的字段回退到 .mcdev.json）。 */
-export function resolveHostLaunch(preset, config = {}) {
+/**
+ * 从预设解析启动参数（完全来自预设，不再读取 .mcdev.json）。
+ * 未选世界时回退到默认开发世界名。
+ */
+export function resolveHostLaunch(preset, defaultWorld = 'MC_DEV_WORLD') {
   const host = normalizeHost(preset !== null && preset !== undefined ? preset.host : null);
-  const skinInfo = config !== null && typeof config === 'object' && config.skin_info && typeof config.skin_info === 'object'
-    ? config.skin_info
-    : {};
   return {
-    world: host.world !== '' ? host.world : String(config.world_folder_name || config.world_name || ''),
+    world: host.world !== '' ? host.world : defaultWorld,
     behaviorPacks: host.behaviorPacks,
     resourcePacks: host.resourcePacks,
-    skin: host.skin !== '' ? host.skin : String(skinInfo.skin || ''),
-    // A preset with its own skin owns the slim flag; a preset that inherits the
-    // config skin keeps the config's slim unless it explicitly asks for slim.
-    slim: host.slim === true ? true : host.skin !== '' ? false : Boolean(skinInfo.slim),
-    skinsDir: host.skinsDir,
+    skin: host.skin,
+    slim: host.slim === true,
   };
 }

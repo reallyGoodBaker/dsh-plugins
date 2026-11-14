@@ -1,4 +1,4 @@
-name: CI
+﻿name: CI
 
 on:
   push:
@@ -35,8 +35,8 @@ jobs:
             'scripts/test-client-shapes.mjs',
             'scripts/test-locale-parity.mjs',
             'scripts/test-docs-search.mjs',
-            'scripts/test-launch-profile.mjs',
-            'scripts/test-presets.mjs'
+            'scripts/test-presets.mjs',
+            'scripts/test-catalog.mjs'
           )
           foreach ($script in $scripts) {
             Write-Host "== $script =="

@@ -22,7 +22,7 @@
 
 - Windows + 已安装网易 MC Studio / ModPC 开发包（`C:\MCStudioDownload\game\MinecraftPE_Netease\<版本>\Minecraft.Windows.exe`，或设置 `MCDEV_GAME_DIR`）；
 - 开发世界：默认 `%APPDATA%\MinecraftPE_Netease\minecraftWorlds\MC_DEV_WORLD`；不存在时 `start()` 会尝试用 `world_templates` 模板创建，仍失败则提示先用 MC Studio 创建一次；
-- 工程根目录有 `.mcdev.json`（只读它来解析游戏路径、世界名与工程包目录；修改会先备份 `.bak`）。
+- 工程根目录建议放行为包/资源包：`bp/`、`rp/`（用于包清单；不再读取 `.mcdev.json`）。
 
 ## 安装
 
@@ -64,7 +64,7 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
 
 ### 启动预设（presets）
 
-一个预设 = **游戏路径 + 1 个 host + 若干 guest**，保存在 **`<工程>/.mcdev/launch-presets.json`**（插件自有状态，**不修改 `.mcdev.json`**）：
+一个预设 = **游戏路径 + 1 个 host + 若干 guest**，保存在 **`<工程>/.mcdev/launch-presets.json`**。预设**完全自包含**：插件不再读取或兼容 `.mcdev.json`，启动所需的游戏路径、世界、包、皮肤全部来自预设本身。
 
 ```json
 {
@@ -79,22 +79,22 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
         "world": "MC_DEV_WORLD",
         "behaviorPacks": ["<uuid>"],
         "resourcePacks": ["<uuid>"],
-        "skin": "C:/skins/hero.png",
-        "slim": false,
-        "skinsDir": "C:/skins"
+        "skin": "<工程>/.mcdev/skins/hero.png",
+        "slim": false
       },
-      "guests": [{ "id": "g-xxxxxxxx", "name": "Guest 1", "skin": "C:/skins/guest.png", "slim": false }]
+      "guests": [{ "id": "g-xxxxxxxx", "name": "Guest 1", "skin": "<工程>/.mcdev/skins/guest.png", "slim": false }]
     }
   ]
 }
 ```
 
-- **启动按钮 = 启动当前激活预设的 host**；`gameExe` 为空时自动探测（不同机器安装位置可能不同）；
+- **启动按钮 = 启动当前激活预设的 host**；`gameExe` 在设置页通过「选择游戏文件夹」或「使用探测路径」取得（不同机器安装位置可能不同）；
 - host 可选世界 / 行为包 / 资源包 / 皮肤 / 纤细模型；**guest 只能选皮肤**（世界与包由 host 决定）；
 - guest 启动项目前**只保存、不自动拉起**（等待联机方案；面板上有说明）；
-- `world` 为空 = 跟随 `.mcdev.json`；`behaviorPacks`/`resourcePacks` 为 `null` = 工程解析出的全部包；启动时按选择**追加**包（不删除世界里已有的包）；
-- 首次使用自动创建**默认预设**：世界/包/皮肤/gameExe 取自当前工程能检索到的内容；
-- 面板 full 模式动作行**最右侧的齿轮**打开「启动预设」设置页：可新增/删除预设、编辑名称与游戏路径、选择 host 配置、添加/删除 guest。
+- `world` 为空时使用默认开发世界 `MC_DEV_WORLD`；`behaviorPacks`/`resourcePacks` 为 `null` = 工程 `bp/`、`rp/` 解析出的全部包；启动时按选择**追加**包（不删除世界里已有的包）；
+- 首次使用自动创建**默认预设**：世界 / 皮肤 / gameExe 取自当前工程与客户端能检索到的内容；
+- **行为包/资源包/皮肤全部通过系统文件夹选择器导入**（`filepicker`），复制到 `<工程>/.mcdev/packs/{behavior,resource}/...` 与 `<工程>/.mcdev/skins/`，用户不需要手工输入任何路径；
+- 面板 full 模式动作行**最右侧的齿轮**打开 M3 风格的「启动预设」设置页：预设卡片（预设下拉、名称、游戏路径）、主机卡片（世界/新建世界、包导入与勾选、皮肤导入、纤细模型开关）、访客卡片（访客皮肤与纤细模型），以及保存按钮。
 
 ### Agent 工具 `mcdev`
 
@@ -119,12 +119,12 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
 
 | 键 | 默认 | 说明 |
 | --- | --- | --- |
-| `projectDir` | `''` | 工程目录（含 `.mcdev.json`）；空 = 会话工作目录 |
+| `projectDir` | `''` | 工程目录（含 `bp/`、`rp/` 或 `.mcdev/launch-presets.json`）；空 = 会话工作目录 |
 | `logLimit` | `2000` | 日志环形缓冲行数 |
 | `docsDir` | `''` | 文档目录；空 = 插件内置 `docs/` |
 | `startTimeoutMs` | `180000` | agent `start` 默认等待进入存档的时间 |
 
-**注意**：插件会**读取**工程 `.mcdev.json`（游戏路径 / 世界名 / 包含目录）；`config` 动作写回前会备份 `.mcdev.json.bak`。
+**注意**：本版本已**移除 `.mcdev.json` 兼容**——启动所需的世界/包/皮肤/游戏路径全部来自插件自有的启动预设；工程里的 `bp/`、`rp/` 只用于发现可选包。
 
 ## 验证记录（2026-11-14，本机真机）
 

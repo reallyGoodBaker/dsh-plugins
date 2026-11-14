@@ -4,7 +4,7 @@
  *
  * Builds a fake Cordis context, applies the plugin, then exercises the
  * registered `/mcdev` command and `mcdev` tool without a Harness or a running
- * game (documentation search, discovery, config read and help are all safe).
+ * game (documentation search, discovery, presets and help are all safe).
  *
  *   node scripts/test-integration.mjs
  */
@@ -127,7 +127,7 @@ async function runCommand(rawInput) {
   console.log('ok 6 - tool help / unknown action')
 }
 
-// 6. discover (safe: reads config + locates binaries, never launches the game)
+// 6. discover (safe: locates binaries and the active preset, never launches the game)
 {
   const result = await runCommand('--json discover')
   const payload = JSON.parse(result.text)
@@ -167,13 +167,29 @@ async function runCommand(rawInput) {
   console.log('ok 10 - jsonPayloadOf shapes for start/failure/game_logs/docs')
 }
 
-// 7. config read (must not write .mcdev.json)
+// 7. presets (plugin-owned, no .mcdev.json involved)
+{
+  const result = await runCommand('--json presets')
+  const payload = JSON.parse(result.text)
+  assert.equal(payload.ok, true, payload.error ?? 'presets read failed')
+  assert.equal(typeof payload.state, 'object')
+  assert.ok(Array.isArray(payload.state.presets) && payload.state.presets.length > 0, 'default preset exists')
+  assert.ok(Array.isArray(payload.worlds), 'worlds are returned')
+  assert.ok(Array.isArray(payload.skins), 'skins are returned')
+  assert.equal(typeof payload.path, 'string', 'presets file path is returned')
+  assert.ok(!('config' in payload), 'presets do not expose .mcdev.json')
+  console.log('ok 11 - /mcdev presets --json ->', payload.state.presets.length, 'presets,', payload.worlds.length, 'worlds')
+}
+
+// 8. .mcdev.json compatibility removed: the old config action is gone
 {
   const result = await runCommand('--json config')
   const payload = JSON.parse(result.text)
-  assert.equal(payload.ok, true, payload.error ?? 'config read failed')
-  assert.ok(payload.config !== null && typeof payload.config === 'object')
-  console.log('ok 8 - config read -> keys:', Object.keys(payload.config).length)
+  assert.equal(payload.ok, true, 'an unknown verb falls back to help')
+  assert.ok(Array.isArray(payload.actions), 'help lists the available actions')
+  assert.ok(!payload.actions.includes('config'), 'config action removed from ACTIONS')
+  assert.ok(!('config' in payload), 'no .mcdev.json payload is returned')
+  console.log('ok 12 - .mcdev.json config action removed')
 }
 
 // 8. cleanup order: disposers run without throwing

@@ -67,7 +67,7 @@
     "resizePanel": "Resize panel (drag or arrow keys)",
     "configTab": "Config",
     "world": "World",
-    "worldDefault": "Follow .mcdev.json",
+    "worldDefault": "Default dev world",
     "newWorld": "New world",
     "newWorldPlaceholder": "New world name…",
     "create": "Create",
@@ -78,6 +78,7 @@
     "skinsDirPlaceholder": "Skin folder to scan (optional)",
     "skinPathPlaceholder": "Absolute path of a skin PNG",
     "skinDefault": "Default skin",
+    "skinUnselected": "Select a skin",
     "slim": "Slim model",
     "selectAll": "All",
     "clearAll": "None",
@@ -122,6 +123,17 @@
     "presetDeleted": "Preset deleted",
     "presetLoadFailed": "Could not load the presets",
     "presetSaveFailed": "Could not save the preset",
-    "presetDeleteFailed": "Could not delete the preset"
+    "presetDeleteFailed": "Could not delete the preset",
+    "pickerUnavailable": "Folder picker unavailable",
+    "pickerFailed": "Could not open the folder picker",
+    "importFailed": "Import failed",
+    "packImported": "Pack imported",
+    "skinsImported": "Skins imported",
+    "importPacks": "Import pack",
+    "importSkins": "Import skins",
+    "gamePathDetected": "Detected:",
+    "chooseGameFolder": "Choose game folder",
+    "packSourceImported": "imported",
+    "presetActive": "Active"
   }
 }

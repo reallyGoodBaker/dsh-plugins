@@ -1,4 +1,10 @@
-# dsh-mcdev — 实现契约（v0.7.1：渲染隔离）
+# dsh-mcdev — 实现契约（v0.8：M3 设置页 / 移除 .mcdev.json 兼容 / 文件夹导入）
+
+> **v0.8 变更（binding）**：
+> - **设置页重做为 Material 3**：outlined 字段、filled/tonal/outlined 按钮、M3 switch、list item、卡片分区；设置仍通过动作行最右侧齿轮在面板内打开；
+> - **移除 `.mcdev.json` 兼容**：启动不再读取 `.mcdev.json`（世界/包/皮肤/游戏路径全部来自预设）；删除 `lib/native/launchProfile.js` 与旧 `launch-profile.json` 迁移，`test-launch-profile.mjs` 删除；
+> - **文件夹导入**：`pack-import`（行为包/资源包，复制到 `<工程>/.mcdev/packs/<kind>`）与 `skin-import`（复制 PNG 到 `<工程>/.mcdev/skins`）；面板用系统文件夹选择器（`ctx.uiWorkspace.pickDirectory`）选择，**不再让用户输入任何路径**；游戏路径通过「选择游戏文件夹」或「使用探测路径」获得；
+> - 新增 `lib/native/catalog.js`（工程/导入/全局包目录、皮肤目录、导入逻辑）与 `scripts/test-catalog.mjs`（6 项）；`test-presets.mjs` 改为 8 项（含"不再读取 .mcdev.json"断言）。
 
 > **v0.7.1 变更（性能）**：面板根节点 `.mcd-root` 增加 `contain: content`（layout/style/paint 隔离），拖拽/缩放/日志刷新只影响面板子树；无 Host 接口变化，仅 Bump 版本。
 

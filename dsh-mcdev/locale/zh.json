@@ -67,7 +67,7 @@
     "resizePanel": "调整面板大小（拖拽或方向键）",
     "configTab": "配置",
     "world": "世界",
-    "worldDefault": "跟随 .mcdev.json",
+    "worldDefault": "默认开发世界",
     "newWorld": "新建世界",
     "newWorldPlaceholder": "新世界名…",
     "create": "新建",
@@ -78,6 +78,7 @@
     "skinsDirPlaceholder": "要扫描的皮肤目录（可选）",
     "skinPathPlaceholder": "皮肤 PNG 的绝对路径",
     "skinDefault": "默认皮肤",
+    "skinUnselected": "请选择皮肤（游戏必需）",
     "slim": "纤细模型",
     "selectAll": "全选",
     "clearAll": "清空",
@@ -122,6 +123,17 @@
     "presetDeleted": "已删除预设",
     "presetLoadFailed": "读取预设失败",
     "presetSaveFailed": "保存预设失败",
-    "presetDeleteFailed": "删除预设失败"
+    "presetDeleteFailed": "删除预设失败",
+    "pickerUnavailable": "文件夹选择器不可用",
+    "pickerFailed": "无法打开文件夹选择器",
+    "importFailed": "导入失败",
+    "packImported": "包已导入",
+    "skinsImported": "皮肤已导入",
+    "importPacks": "导入包",
+    "importSkins": "导入皮肤",
+    "gamePathDetected": "探测到：",
+    "chooseGameFolder": "选择游戏文件夹",
+    "packSourceImported": "导入",
+    "presetActive": "当前激活"
   }
 }

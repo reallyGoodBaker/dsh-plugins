@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Tests for launch presets (game path + host world/packs/skin + guests).
+ * Tests for launch presets: game path + host world/packs/skin + guests.
+ * Presets are self-contained; .mcdev.json is never consulted.
  *
  *   node scripts/test-presets.mjs
  */
@@ -14,7 +15,6 @@ import {
   findPreset,
   normalizePreset,
   normalizePresets,
-  presetFromLegacyProfile,
   presetsPath,
   readPresets,
   removePreset,
@@ -38,10 +38,11 @@ function makeProject() {
   assert.deepEqual(preset.host.behaviorPacks, ['a', 'b'])
   assert.equal(preset.host.resourcePacks, null)
   assert.equal(preset.host.slim, false)
+  assert.equal(preset.host.skinsDir, undefined, 'skins are project-managed, not per preset')
   console.log('ok 1 - normalizePreset fills defaults and normalizes the host')
 }
 
-// 2) guests: only skin/slim kept, names/ids normalized, extra fields dropped
+// 2) guests: only skin/slim kept, names/ids normalized
 {
   const preset = normalizePreset({
     name: 'Multi',
@@ -98,7 +99,7 @@ function makeProject() {
   console.log('ok 4 - presets persist inside the project and keep a .bak')
 }
 
-// 5) default preset seeds from the current project discovery
+// 5) default preset seeds from the current discovery (game path/world/skin)
 {
   const preset = defaultPreset({ gameExe: 'E:/Minecraft.Windows.exe', world: 'WORLD_A', skin: 'C:/s.png', slim: true })
   assert.equal(preset.name, '默认预设')
@@ -111,46 +112,23 @@ function makeProject() {
   console.log('ok 5 - defaultPreset carries the discovered world/skin/game path')
 }
 
-// 6) legacy launch-profile migrates into a default preset
+// 6) resolveHostLaunch is explicit-only: no .mcdev.json fallback
 {
-  const preset = presetFromLegacyProfile(
-    { world: 'OLD_WORLD', behaviorPacks: ['uuid-1'], resourcePacks: [], skin: 'C:/old.png', slim: true },
-    { gameExe: 'F:/MC/Minecraft.Windows.exe' },
+  const explicit = resolveHostLaunch(
+    normalizePreset({ host: { world: 'P_WORLD', skin: 'C:/p.png', slim: true } }),
   )
-  assert.equal(preset.host.world, 'OLD_WORLD')
-  assert.deepEqual(preset.host.behaviorPacks, ['uuid-1'])
-  assert.deepEqual(preset.host.resourcePacks, [])
-  assert.equal(preset.host.skin, 'C:/old.png')
-  assert.equal(preset.gameExe, 'F:/MC/Minecraft.Windows.exe')
-  console.log('ok 6 - legacy profile seeds the default preset')
-}
-
-// 7) resolveHostLaunch falls back to .mcdev.json for empty fields
-{
-  const preset = normalizePreset({ host: { world: '', skin: '', slim: true } })
-  const launch = resolveHostLaunch(preset, {
-    world_folder_name: 'CONFIG_WORLD',
-    skin_info: { skin: 'C:/config-skin.png', slim: false },
-  })
-  assert.equal(launch.world, 'CONFIG_WORLD')
-  assert.equal(launch.skin, 'C:/config-skin.png')
-  assert.equal(launch.slim, true, 'an explicit slim flag wins over the config')
-  const plain = resolveHostLaunch(normalizePreset({ host: { world: '', skin: '', slim: false } }), {
-    world_folder_name: 'CONFIG_WORLD',
-    skin_info: { skin: 'C:/config-skin.png', slim: true },
-  })
-  assert.equal(plain.slim, true, 'an inherited skin keeps the config slim flag')
-  const explicit = resolveHostLaunch(normalizePreset({ host: { world: 'P_WORLD', skin: 'C:/p.png', slim: true } }), {
-    world_folder_name: 'CONFIG_WORLD',
-    skin_info: { skin: 'C:/config-skin.png', slim: false },
-  })
   assert.equal(explicit.world, 'P_WORLD')
   assert.equal(explicit.skin, 'C:/p.png')
   assert.equal(explicit.slim, true)
-  console.log('ok 7 - resolveHostLaunch prefers the preset and falls back to the config')
+  const empty = resolveHostLaunch(normalizePreset({}), 'FALLBACK_WORLD')
+  assert.equal(empty.world, 'FALLBACK_WORLD')
+  assert.equal(empty.skin, '')
+  assert.equal(empty.slim, false)
+  assert.equal(empty.behaviorPacks, null)
+  console.log('ok 6 - resolveHostLaunch never reads .mcdev.json')
 }
 
-// 8) activeId fallback when the stored id is unknown
+// 7) activeId fallback when the stored id is unknown
 {
   const preset = normalizePreset({ name: 'Only' })
   const state = normalizePresets({ activeId: 'missing-id', presets: [preset] })
@@ -158,7 +136,16 @@ function makeProject() {
   const empty = normalizePresets({ presets: [] })
   assert.deepEqual(empty.presets, [])
   assert.equal(empty.activeId, '')
-  console.log('ok 8 - activeId falls back to the first preset')
+  console.log('ok 7 - activeId falls back to the first preset')
+}
+
+// 8) legacy globals are gone: the preset module carries no .mcdev.json helpers
+{
+  const source = fs.readFileSync(new URL('../lib/native/presets.js', import.meta.url), 'utf8')
+  assert.ok(!source.includes('readConfigWithDefaults'), 'presets must not read .mcdev.json')
+  assert.ok(!source.includes('presetFromLegacyProfile'), 'legacy migration was removed')
+  assert.ok(!fs.existsSync(new URL('../lib/native/launchProfile.js', import.meta.url)), 'launch-profile.js was removed')
+  console.log('ok 8 - legacy launch-profile / .mcdev.json compatibility removed')
 }
 
 console.log('8 preset tests passed')
