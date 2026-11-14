@@ -1,4 +1,12 @@
-# dsh-mcdev — 实现契约（v0.6：启动配置）
+# dsh-mcdev — 实现契约（v0.7：启动预设）
+
+> **v0.7 变更（启动预设）**：把 v0.6 的单份 launch-profile 升级为**预设集合**：
+> - 插件自有文件 `<工程>/.mcdev/launch-presets.json`：`{version, activeId, presets:[{id,name,gameExe,host:{world,behaviorPacks,resourcePacks,skin,slim,skinsDir},guests:[{id,name,skin,slim}]}]}`，**不修改 `.mcdev.json`**；
+> - 一个预设 = 游戏路径 + 1 个 host（世界/包/皮肤）+ 若干 guest（只能皮肤）；旧 `launch-profile.json` 自动迁移为默认预设；
+> - 新 action：`presets` / `preset-save` / `preset-delete` / `preset-active`；移除 `launch-config` / `launch-profile`；`start` 支持 `presetId`（默认当前激活预设），host 的 `gameExe` 优先于 `.mcdev.json`；
+> - 启动按钮 = 启动当前激活预设的 host；guest 启动项目前只保存、不自动拉起（联机方案待定，按用户决定 A 分步交付）；
+> - 面板：动作行最右侧新增齿轮按钮，在面板内切换到「启动预设」设置页（不再是 tab）；新增预设/删除预设/编辑名称与游戏路径/host 配置/guest 皮肤列表；
+> - 新增 `lib/native/presets.js` 与 `scripts/test-presets.mjs`（8 项）。
 
 > **v0.6 变更（启动配置）**：新增「世界 / 行为包 / 资源包 / 皮肤」选择。
 > - 插件自有配置 `<工程>/.mcdev/launch-profile.json`（`world` / `behaviorPacks` / `resourcePacks` / `skin` / `slim` / `skinsDir`），**不修改 `.mcdev.json`**；

@@ -27,7 +27,7 @@ const SECTION_NAME = 'dsh-mcdev/minecraft'
 const SKILL_NAME = 'minecraft-mod-dev'
 const SERVICE_KEY = 'mcdev'
 /** Code version surfaced by `action: "help"`; bump with `package.json`. */
-const CODE_VERSION = '0.6.0'
+const CODE_VERSION = '0.7.0'
 
 /** Actions shared by the command and the agent tool. */
 const ACTIONS = [
@@ -49,9 +49,11 @@ const ACTIONS = [
   'worlds',
   'packs',
   'skins',
-  'launch-config',
-  'launch-profile',
   'world-create',
+  'presets',
+  'preset-save',
+  'preset-delete',
+  'preset-active',
 ]
 
 const ACTION_HELP = [
@@ -72,15 +74,17 @@ const ACTION_HELP = [
   'worlds — 列出可选世界与当前生效世界',
   'packs — 列出可选行为包 / 资源包与当前选择',
   'skins [skinsDir] — 列出可选皮肤 PNG 与当前皮肤',
-  'launch-config — 一次返回启动配置、世界、包、皮肤清单（面板用）',
-  'launch-profile [patch] — 读取或合并写回插件自有启动配置（不动 .mcdev.json）',
-  'world-create {worldName} — 从官方模板新建世界（不覆盖已有世界）',
+  'world-create {worldName, worldFrom?} — 从官方模板或已有世界新建世界（不覆盖已有）',
+  'presets — 预设集合（游戏路径 + host 世界/包/皮肤 + guest 皮肤）与可选清单（面板设置页用）',
+  'preset-save {preset} — 新增/更新一个启动预设（按 id）',
+  'preset-delete {presetId} — 删除一个启动预设（至少保留一个）',
+  'preset-active {presetId} — 设置当前激活的启动预设',
 ].join('\n')
 
 const SYSTEM_PROMPT = [
   'Minecraft (网易我的世界) 开发：任务涉及 Mod/Addon、ModSDK、行为包/资源包、.mcdev.json、JSON UI 或真实游戏验证时，使用 `mcdev` 工具。',
   '写 ModSDK 代码前先用 `docs_search` 查官方资料（离线语料含 ModAPI/网易教程/QuMod/SAPI），不要凭记忆猜接口；改完代码用 `reload` + `logs` 验证，日志和错误优先于截图。',
-  '需要换世界/附加包/皮肤时：`worlds`/`packs`/`skins` 看清单，`launch-profile` 保存到插件自有 <project>/.mcdev/launch-profile.json（不改 .mcdev.json），`world-create` 从模板新建世界；之后 `start` 自动沿用。',
+  '需要换世界/附加包/皮肤或游戏路径时：用 `presets` 读取、`preset-save` 保存启动预设（含 gameExe、host 的世界/包/皮肤、guest 皮肤；文件在 <project>/.mcdev/launch-presets.json，不改 .mcdev.json），`preset-active` 选当前预设；之后 `start` 自动沿用。',
   '`start` 可能要 1–3 分钟，`stop` 会结束游戏进程，执行前确认用户意图。',
 ].join('\n')
 
@@ -102,14 +106,16 @@ ${ACTION_HELP}
 6. 需要视觉确认时 \`screenshot\`；JSON UI 用 \`jsonui\`；纯结构/接口问题先用 \`docs_search\`。
 7. 全部结束 \`stop\`。
 
-## 启动配置（世界 / 行为包 / 资源包 / 皮肤）
-- \`worlds\` 列出可选世界；\`packs\` 列出行为包/资源包；\`skins\` 列出皮肤 PNG。
-- \`launch-profile\` 读取或合并写回 \`<工程>/.mcdev/launch-profile.json\`（插件自有，不改 \`.mcdev.json\`）：
-  \`{"world":"名字","behaviorPacks":["uuid"...],"resourcePacks":[...],"skin":"C:\\\\s.png","slim":false,"skinsDir":"..."}\`。
-  \`behaviorPacks/resourcePacks\` 为 \`null\` 时沿用工程解析出的全部包；启动时只会**追加**选择的包，不会删除世界里已有的包。
-- \`world-create {"worldName":"名字"}\` 从官方模板新建世界（不覆盖已有世界）。
-- 之后直接 \`start\` 沿用该配置；也可以给 \`start\` 传 \`world/behaviorPacks/resourcePacks/skin/slim\` 做一次性覆盖。
-- 浏览器面板 full 模式的「配置」页提供同样的选择界面。
+## 启动预设（presets）
+- 预设文件 \`<工程>/.mcdev/launch-presets.json\`（插件自有，不改 \`.mcdev.json\`）；每个预设 =
+  \`{id, name, gameExe, host:{world,behaviorPacks,resourcePacks,skin,slim,skinsDir}, guests:[{id,name,skin,slim}]}\`。
+- \`presets\` 读取全部预设 + 世界/包/皮肤清单；\`preset-save {preset}\` 新增/更新；\`preset-delete {presetId}\`；\`preset-active {presetId}\`。
+- 一个预设只有一个 host：host 可选世界/行为包/资源包/皮肤；guest 只能配皮肤（世界与包由 host 决定）。
+- \`gameExe\` 是该预设的 Minecraft.Windows.exe 路径（不同机器安装位置可能不同；空 = 自动探测）。
+- 启动按钮 = 启动当前激活预设的 host；guest 启动项已保存但暂不自动拉起（等待联机方案）。
+- 一次性覆盖仍可用：\`start {presetId, world, behaviorPacks, resourcePacks, skin, slim}\`。
+- \`worlds\` / \`packs\` / \`skins\` / \`world-create\` 用于填充预设里的选项。
+- 浏览器面板的动作行右侧「设置」按钮会打开预设设置页。
 
 ## 重要约束
 - ModSDK 运行在 Python 2.7：不要用 f-string、type hints、pathlib、asyncio。
@@ -491,33 +497,44 @@ class McDevService {
         const worlds = await bridge.listWorlds(projectDir)
         return { ok: true, created, ...worlds }
       }
-      if (action === 'launch-profile') {
-        const patch = args.profilePatch !== undefined ? args.profilePatch : args.patch
-        if (patch !== undefined && patch !== null) {
-          const next = await bridge.updateLaunchProfile(patch, projectDir)
-          return { ok: true, ...next }
-        }
-        return { ok: true, ...(await bridge.launchProfile(projectDir)) }
-      }
-      if (action === 'launch-config') {
+      if (action === 'presets') {
         const skinsDir = typeof args.skinsDir === 'string' ? args.skinsDir : ''
-        const profile = await bridge.launchProfile(projectDir)
+        const data = await bridge.presets(projectDir)
         const worlds = await bridge.listWorlds(projectDir)
         const catalog = await bridge.packCatalog(projectDir)
         const skins = await bridge.skins(projectDir, skinsDir)
         return {
           ok: true,
-          profilePath: profile.path,
-          profile: profile.profile,
+          path: data.path,
+          state: data.state,
+          detectedGameExe: data.detectedGameExe,
+          versions: data.versions,
           current: worlds.current,
           worlds: worlds.worlds,
           behavior: catalog.behavior,
           resource: catalog.resource,
-          selected: catalog.selected,
           warnings: catalog.warnings,
           skinsDirs: skins.dirs,
           skins: skins.files,
         }
+      }
+      if (action === 'preset-save') {
+        const preset = args.preset
+        if (preset === null || typeof preset !== 'object' || Array.isArray(preset)) {
+          return { ok: false, error: '缺少 preset：请提供一个预设对象' }
+        }
+        const result = await bridge.savePreset(preset, projectDir)
+        return { ok: true, ...result }
+      }
+      if (action === 'preset-delete') {
+        const presetId = typeof args.presetId === 'string' ? args.presetId.trim() : ''
+        if (presetId === '') return { ok: false, error: '缺少 presetId：请提供要删除的预设 id' }
+        return { ok: true, ...(await bridge.deletePreset(presetId, projectDir)) }
+      }
+      if (action === 'preset-active') {
+        const presetId = typeof args.presetId === 'string' ? args.presetId.trim() : ''
+        if (presetId === '') return { ok: false, error: '缺少 presetId：请提供要激活的预设 id' }
+        return { ok: true, ...(await bridge.setActivePreset(presetId, projectDir)) }
       }
 
       if (action === 'status') {
@@ -530,6 +547,7 @@ class McDevService {
           reset: flagOf(args.reset),
           join: args.join === undefined ? true : flagOf(args.join),
           waitMs,
+          presetId: typeof args.presetId === 'string' && args.presetId.trim() !== '' ? args.presetId.trim() : undefined,
           world: typeof args.world === 'string' && args.world.trim() !== '' ? args.world.trim() : undefined,
           behaviorPacks: Array.isArray(args.behaviorPacks) ? args.behaviorPacks.map((item) => String(item)) : undefined,
           resourcePacks: Array.isArray(args.resourcePacks) ? args.resourcePacks.map((item) => String(item)) : undefined,
@@ -717,16 +735,30 @@ function renderPayload(action, payload) {
       const fileLines = files.map((file) => `${file.path}`)
       return `皮肤目录：\n${dirLines.join('\n') || '（无）'}\n\n可选皮肤 PNG：\n${fileLines.join('\n') || '（无）'}\n\n当前：${payload.profile && payload.profile.skin ? payload.profile.skin : '默认皮肤'}`
     }
-    case 'launch-profile':
-      return asJsonText({ path: payload.path, profile: payload.profile })
-    case 'launch-config':
-      return asJsonText({
-        profile: payload.profile,
-        current: payload.current,
-        worlds: payload.worlds,
-        selected: payload.selected,
-        skins: payload.skins,
+    case 'presets': {
+      const state = payload.state || {}
+      const presets = Array.isArray(state.presets) ? state.presets : []
+      const lines = presets.map((preset) => {
+        const host = preset.host || {}
+        const guests = Array.isArray(preset.guests) ? preset.guests.length : 0
+        const active = preset.id === state.activeId ? '*' : ' '
+        return `${active} ${preset.name}  [${preset.id}]  exe=${preset.gameExe || '(自动探测)'}  world=${host.world || '(跟随 .mcdev.json)'}  guests=${guests}`
       })
+      return `启动预设（* = 当前激活）：\n${lines.join('\n') || '（无）'}\n\n游戏路径（探测到）：${payload.detectedGameExe || '(未找到)'}`
+    }
+    case 'preset-save': {
+      const preset = payload.preset || {}
+      return `${payload.created === true ? '已新增' : '已保存'}预设：${preset.name || ''}  [${preset.id || ''}]`
+    }
+    case 'preset-delete': {
+      const state = payload.state || {}
+      return `已删除预设；当前激活：${state.activeId || ''}（共 ${Array.isArray(state.presets) ? state.presets.length : 0} 个）`
+    }
+    case 'preset-active': {
+      const state = payload.state || {}
+      const active = Array.isArray(state.presets) ? state.presets.find((preset) => preset.id === state.activeId) : undefined
+      return `当前激活预设：${active !== undefined ? active.name : state.activeId || ''}`
+    }
     case 'world-create': {
       const created = payload.created || {}
       const from = created.copiedFrom !== undefined ? `（复制自 ${created.copiedFrom}）` : ''
@@ -779,7 +811,7 @@ export function applyMcdev(ctx, config) {
         description:
           'Drive the NetEase Minecraft (网易我的世界) ModPC dev client: launch/stop it, read logs, execute Python in the game, reload scripts, screenshot, inspect JSON UI, and search the bundled NetEase ModSDK documentation.',
         input: {
-          hint: '[--json] <status|discover|start|stop|logs|exec|reload|screenshot|jsonui|input|docs|read|config|worlds|packs|skins|launch-config|launch-profile|world-create|help> [options]',
+          hint: '[--json] <status|discover|start|stop|logs|exec|reload|screenshot|jsonui|input|docs|read|config|worlds|packs|skins|world-create|presets|preset-save|preset-delete|preset-active|help> [options]',
         },
         handler: async (invocation) => {
           const agent = invocation?.agent
@@ -851,7 +883,15 @@ export function applyMcdev(ctx, config) {
             },
             world: {
               type: 'string',
-              description: 'start: world folder name to launch (defaults to the launch profile).',
+              description: 'start: world folder name to launch (defaults to the active preset).',
+            },
+            presetId: {
+              type: 'string',
+              description: 'start/preset-delete/preset-active: preset id; start falls back to the active preset.',
+            },
+            preset: {
+              type: 'object',
+              description: 'preset-save: preset object {id?, name, gameExe, host:{world,behaviorPacks,resourcePacks,skin,slim,skinsDir}, guests:[{id?,name?,skin,slim}]}.',
             },
             worldName: {
               type: 'string',
@@ -864,20 +904,16 @@ export function applyMcdev(ctx, config) {
             behaviorPacks: {
               type: 'array',
               items: { type: 'string' },
-              description: 'start: behavior pack uuids to attach (defaults to the launch profile selection).',
+              description: 'start: behavior pack uuids to attach (one-shot override of the preset).',
             },
             resourcePacks: {
               type: 'array',
               items: { type: 'string' },
-              description: 'start: resource pack uuids to attach (defaults to the launch profile selection).',
+              description: 'start: resource pack uuids to attach (one-shot override of the preset).',
             },
             skin: { type: 'string', description: 'start: absolute path of a skin PNG (empty = default skin).' },
             slim: { type: 'boolean', description: 'start: use the slim (3-pixel) player model.' },
-            skinsDir: { type: 'string', description: 'skins/launch-config: extra directory to scan for skin PNG files.' },
-            profilePatch: {
-              type: 'object',
-              description: 'launch-profile: partial launch profile merged and written back (world/behaviorPacks/resourcePacks/skin/slim/skinsDir).',
-            },
+            skinsDir: { type: 'string', description: 'skins/presets: extra directory to scan for skin PNG files.' },
             timeoutMs: { type: 'number', description: 'exec/reload/screenshot/jsonui/input/mcp: operation timeout.' },
           },
           required: ['action'],
@@ -993,11 +1029,14 @@ function optionsToArgs(parsed) {
   push('skin', typeof options.skin === 'string' ? options.skin : undefined)
   push('skinsDir', typeof options['skins-dir'] === 'string' ? options['skins-dir'] : undefined)
   if (options.slim !== undefined) args.slim = flagOf(options.slim)
-  if (typeof options.profile === 'string') {
+  // Presets: id selection plus an inline preset JSON object.
+  if (typeof options['preset-id'] === 'string') args.presetId = options['preset-id']
+  else if (typeof options.presetId === 'string') args.presetId = options.presetId
+  if (typeof options.preset === 'string') {
     try {
-      args.profilePatch = JSON.parse(options.profile)
+      args.preset = JSON.parse(options.preset)
     } catch (error) {
-      args.profilePatch = options.profile
+      args.preset = options.preset
     }
   }
   // Generic base64url variants: `--<name>-b64=<base64url>` decodes to `<name>`.
@@ -1025,11 +1064,12 @@ function optionsToArgs(parsed) {
   if (args['behavior-packs'] !== undefined && args.behaviorPacks === undefined) args.behaviorPacks = splitPackList(args['behavior-packs'])
   if (args['resource-packs'] !== undefined && args.resourcePacks === undefined) args.resourcePacks = splitPackList(args['resource-packs'])
   if (args['skins-dir'] !== undefined && args.skinsDir === undefined) args.skinsDir = args['skins-dir']
-  if (typeof args.profile === 'string' && args.profilePatch === undefined) {
+  if (args['preset-id'] !== undefined && args.presetId === undefined) args.presetId = args['preset-id']
+  if (typeof args.preset === 'string' && args.preset !== '') {
     try {
-      args.profilePatch = JSON.parse(args.profile)
+      args.preset = JSON.parse(args.preset)
     } catch (error) {
-      args.profilePatch = args.profile
+      args.preset = undefined
     }
   }
   delete args['world-name']
@@ -1037,7 +1077,7 @@ function optionsToArgs(parsed) {
   delete args['behavior-packs']
   delete args['resource-packs']
   delete args['skins-dir']
-  delete args.profile
+  delete args['preset-id']
   return args
 }
 
@@ -1082,11 +1122,16 @@ function commandVerbToAction(verb, positionals, args) {
     case 'skins':
       if (rest !== '' && args.skinsDir === undefined) args.skinsDir = rest
       return 'skins'
-    case 'launch-config':
-      return 'launch-config'
-    case 'launch-profile':
-    case 'profile':
-      return 'launch-profile'
+    case 'presets':
+      return 'presets'
+    case 'preset-save':
+      return 'preset-save'
+    case 'preset-delete':
+      if (rest !== '' && args.presetId === undefined) args.presetId = rest
+      return 'preset-delete'
+    case 'preset-active':
+      if (rest !== '' && args.presetId === undefined) args.presetId = rest
+      return 'preset-active'
     case 'world-create':
     case 'new-world':
       if (rest !== '' && args.worldName === undefined) args.worldName = rest

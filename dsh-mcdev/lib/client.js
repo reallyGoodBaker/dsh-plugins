@@ -223,6 +223,10 @@ body[data-ds-dark-theme] .mcd-root{
 .mcd-check-name{flex:1 1 auto;min-width:0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mcd-badge{flex:none;padding:1px 6px;border-radius:var(--mcd-radius-full);background:var(--mcd-surface-container-highest);color:var(--mcd-on-surface-variant);font-size:10px}
 .mcd-skin-list{display:flex;flex-wrap:wrap;gap:4px;max-height:104px;overflow:auto}
+.mcd-settings-bar{gap:6px;padding:4px 2px;border-bottom:1px solid var(--mcd-outline-variant)}
+.mcd-guest-row{gap:6px;flex-wrap:wrap}
+.mcd-guest-name{flex:0 0 auto;min-width:64px;font-size:12px;color:var(--mcd-on-surface-variant)}
+.mcd-guest-row .mcd-select{flex:1 1 120px}
 .mcd-config-section .mcd-input{flex:1 1 auto;width:auto;min-width:0}
 .mcd-resize{position:absolute;right:2px;bottom:2px;display:flex;align-items:flex-end;justify-content:flex-end;width:20px;height:20px;padding:0 3px 3px 0;border:0;background:transparent;color:var(--mcd-on-surface-variant);cursor:nwse-resize;touch-action:none;border-radius:0 0 var(--mcd-radius-xl) 0}
 .mcd-resize::after{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;border-bottom-right-radius:2px;opacity:.7}
@@ -289,6 +293,32 @@ body[data-ds-dark-theme] .mcd-root{
       worldSource: 'Copy from',
       worldSourceTemplate: 'Official template',
       worldSourceClone: 'Copy of',
+      settings: 'Settings',
+      settingsTitle: 'Launch presets',
+      back: 'Back',
+      presets: 'Presets',
+      presetName: 'Preset name',
+      gamePath: 'Game path',
+      gamePathPlaceholder: 'Full path to Minecraft.Windows.exe',
+      useDetectedPath: 'Use detected path',
+      host: 'Host',
+      guests: 'Guests',
+      addGuest: 'Add guest',
+      deleteGuest: 'Remove guest',
+      noGuests: 'No guest launches yet',
+      guest: 'Guest',
+      guestHint: 'Guests only pick a skin; world and packs come from the host. Guest launches are saved but not started yet.',
+      presetHint: 'These settings only affect launches from this plugin; .mcdev.json is not modified.',
+      addPreset: 'Add preset',
+      deletePreset: 'Delete preset',
+      noPresets: 'No launch preset available',
+      newPresetName: 'New preset',
+      presetSaved: 'Preset saved',
+      presetAdded: 'Preset added',
+      presetDeleted: 'Preset deleted',
+      presetLoadFailed: 'Could not load the presets',
+      presetSaveFailed: 'Could not save the preset',
+      presetDeleteFailed: 'Could not delete the preset',
       logs: 'Logs',
       exec: 'Run code',
       docs: 'Docs',
@@ -385,6 +415,32 @@ body[data-ds-dark-theme] .mcd-root{
       worldSource: '复制来源',
       worldSourceTemplate: '官方模板',
       worldSourceClone: '复制自',
+      settings: '设置',
+      settingsTitle: '启动预设',
+      back: '返回',
+      presets: '预设',
+      presetName: '预设名称',
+      gamePath: '游戏路径',
+      gamePathPlaceholder: 'Minecraft.Windows.exe 的完整路径',
+      useDetectedPath: '使用探测到的路径',
+      host: '主机',
+      guests: '访客',
+      addGuest: '添加访客',
+      deleteGuest: '删除访客',
+      noGuests: '还没有访客启动项',
+      guest: '访客',
+      guestHint: '访客只能选择皮肤；世界与包由主机决定。guest 启动项当前只保存，不自动拉起。',
+      presetHint: '这些设置只影响本插件的启动，不会修改 .mcdev.json。',
+      addPreset: '新增预设',
+      deletePreset: '删除预设',
+      noPresets: '没有可用的启动预设',
+      newPresetName: '新预设',
+      presetSaved: '预设已保存',
+      presetAdded: '已新增预设',
+      presetDeleted: '已删除预设',
+      presetLoadFailed: '读取预设失败',
+      presetSaveFailed: '保存预设失败',
+      presetDeleteFailed: '删除预设失败',
       logs: '日志',
       exec: '执行代码',
       docs: '文档检索',
@@ -801,21 +857,18 @@ body[data-ds-dark-theme] .mcd-root{
         exec: { code: '', side: 'client', text: '', ran: false, error: undefined, gameLines: [] },
         docs: { query: '', hits: [], searched: false, path: undefined, title: '', text: '', total: 0, more: false, error: undefined },
         launch: {
-          profilePath: '',
-          profile: undefined,
+          page: 'main',
+          presetsPath: '',
+          presets: [],
+          activeId: '',
+          selectedId: '',
+          detectedGameExe: '',
           worlds: [],
           behavior: [],
           resource: [],
-          behaviorSelected: [],
-          resourceSelected: [],
           skins: [],
           skinsDirs: [],
-          skinsDir: '',
-          world: '',
-          skin: '',
-          slim: false,
-          newWorld: '',
-          worldFrom: '',
+          draft: undefined,
           busy: false,
           savedAt: undefined,
           error: undefined,
@@ -923,6 +976,10 @@ body[data-ds-dark-theme] .mcd-root{
       newer: 'M11 4h2v9h4l-5 5-5-5h4V4ZM5 19h14v2H5v-2Z',
       filter: 'M10 18h4v-2h-4v2ZM3 6v2h18V6H3Zm3 7h12v-2H6v2Z',
       tune: 'M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z',
+      settings:
+        'M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.48.48 0 0 0-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.48-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z',
+      back: 'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z',
+      delete: 'M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z',
       add: 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z',
       check: 'M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z',
       copy: 'M16 1H4a2 2 0 0 0-2 2v14h2V3h12zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11z',
@@ -1022,6 +1079,8 @@ body[data-ds-dark-theme] .mcd-root{
       const [docsBusy, setDocsBusy] = React.useState(false);
       const [readBusy, setReadBusy] = React.useState(false);
       const [logSource, setLogSource] = React.useState('launcher');
+      const [newWorldName, setNewWorldName] = React.useState('');
+      const [newWorldFrom, setNewWorldFrom] = React.useState('');
 
       const alive = React.useRef(true);
       const sessionRef = React.useRef(sessionId);
@@ -1562,13 +1621,22 @@ body[data-ds-dark-theme] .mcd-root{
       };
 
       // ---------------------------------------------------------------------
-      // 启动配置（世界 / 行为包 / 资源包 / 皮肤）
+      // 启动预设（设置页）：游戏路径 + host（世界/包/皮肤）+ guest（皮肤）
       // ---------------------------------------------------------------------
 
-      /** Read the plugin-owned launch profile plus the selectable worlds/packs/skins. */
-      const loadLaunchConfig = async (sid, skinsDir) => {
+      const clonePreset = (preset) => {
+        if (preset === null || typeof preset !== 'object') return undefined;
+        try {
+          return JSON.parse(JSON.stringify(preset));
+        } catch (error) {
+          return undefined;
+        }
+      };
+
+      /** Load presets + selectable worlds/packs/skins and pick the preset being edited. */
+      const loadPresets = async (sid, options = {}) => {
         if (sid === undefined || sid === null || !remoteReady(remoteRef.current)) return;
-        const key = sid + '|launch-config';
+        const key = sid + '|presets';
         if (loads.has(key)) {
           await loads.get(key);
           return;
@@ -1576,54 +1644,51 @@ body[data-ds-dark-theme] .mcd-root{
         const task = (async () => {
           commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: true, error: undefined } }));
           try {
-            const suffix = typeof skinsDir === 'string' && skinsDir.trim() !== ''
-              ? ' --skins-dir-b64=' + encodeArg(skinsDir.trim())
-              : '';
-            const result = await runCommand(sid, '/mcdev launch-config' + suffix + ' --json');
+            const skinsDir = typeof options.skinsDir === 'string' ? options.skinsDir : '';
+            const suffix = skinsDir.trim() !== '' ? ' --skins-dir-b64=' + encodeArg(skinsDir.trim()) : '';
+            const result = await runCommand(sid, '/mcdev presets' + suffix + ' --json');
             const data = result.data;
             if (result.kind === 'error' || data === undefined || data.ok === false) {
               const message = data !== undefined && typeof data.error === 'string' && data.error !== ''
                 ? data.error
-                : messageOf(result, translate(t, 'configLoadFailed'));
+                : messageOf(result, translate(t, 'presetLoadFailed'));
               commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: false, error: message } }));
               return;
             }
-            const profile = data.profile !== null && typeof data.profile === 'object' ? data.profile : {};
-            const selected = data.selected !== null && typeof data.selected === 'object' ? data.selected : {};
-            const behavior = Array.isArray(data.behavior) ? data.behavior : [];
-            const resource = Array.isArray(data.resource) ? data.resource : [];
-            const behaviorSelected = Array.isArray(selected.behavior) ? selected.behavior : [];
-            const resourceSelected = Array.isArray(selected.resource) ? selected.resource : [];
-            const current = typeof data.current === 'string' ? data.current : '';
-            const skins = Array.isArray(data.skins) ? data.skins : [];
-            const dirs = Array.isArray(data.skinsDirs) ? data.skinsDirs : [];
-            const skinsDirValue = dirs.length > 0 && dirs[0].exists === false ? '' : (dirs.length > 0 ? dirs[0].dir : '');
+            const state = data.state !== null && typeof data.state === 'object' ? data.state : {};
+            const presets = Array.isArray(state.presets) ? state.presets : [];
+            const activeId = typeof state.activeId === 'string' ? state.activeId : '';
+            const preferred = typeof options.selectId === 'string' && options.selectId !== ''
+              ? options.selectId
+              : viewOf(sid).launch.selectedId || activeId;
+            const selected = presets.find((preset) => preset.id === preferred)
+              || presets.find((preset) => preset.id === activeId)
+              || presets[0];
             commit(sid, (snapshot) => ({
               ...snapshot,
               launch: {
-                profilePath: typeof data.profilePath === 'string' ? data.profilePath : '',
-                profile,
+                ...snapshot.launch,
+                presetsPath: typeof data.path === 'string' ? data.path : '',
+                presets,
+                activeId,
+                selectedId: selected !== undefined ? selected.id : '',
+                detectedGameExe: typeof data.detectedGameExe === 'string' ? data.detectedGameExe : '',
                 worlds: Array.isArray(data.worlds) ? data.worlds : [],
-                behavior,
-                resource,
-                behaviorSelected,
-                resourceSelected,
-                skins,
-                skinsDirs: dirs,
-                skinsDir: typeof profile.skinsDir === 'string' && profile.skinsDir !== '' ? profile.skinsDir : skinsDirValue,
-                world: typeof profile.world === 'string' && profile.world !== '' ? profile.world : current,
-                skin: typeof profile.skin === 'string' ? profile.skin : '',
-                slim: profile.slim === true,
-                newWorld: snapshot.launch.newWorld,
-                worldFrom: snapshot.launch.worldFrom,
+                behavior: Array.isArray(data.behavior) ? data.behavior : [],
+                resource: Array.isArray(data.resource) ? data.resource : [],
+                skins: Array.isArray(data.skins) ? data.skins : [],
+                skinsDirs: Array.isArray(data.skinsDirs) ? data.skinsDirs : [],
+                draft: clonePreset(selected),
                 busy: false,
-                savedAt: snapshot.launch.savedAt,
                 error: undefined,
               },
             }));
           } catch (caught) {
             const message = caught !== null && caught !== undefined && typeof caught.message === 'string' ? caught.message : '';
-            commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: false, error: message !== '' ? message : translate(t, 'configLoadFailed') } }));
+            commit(sid, (current) => ({
+              ...current,
+              launch: { ...current.launch, busy: false, error: message !== '' ? message : translate(t, 'presetLoadFailed') },
+            }));
           } finally {
             loads.delete(key);
           }
@@ -1632,44 +1697,122 @@ body[data-ds-dark-theme] .mcd-root{
         await task;
       };
 
-      /** Merge one launch profile patch and refresh the form from the saved value. */
-      const saveLaunchProfile = async (patch) => {
+      /** Open the in-panel settings page (presets). */
+      const openSettings = () => {
+        const sid = sessionId;
+        if (sid === undefined || sid === null) return;
+        commit(sid, (current) => ({ ...current, launch: { ...current.launch, page: 'settings' } }));
+        if (viewOf(sid).launch.presets.length === 0) void loadPresets(sid);
+      };
+
+      /** Leave the settings page. */
+      const closeSettings = () => {
+        const sid = sessionId;
+        if (sid === undefined || sid === null) return;
+        commit(sid, (current) => ({ ...current, launch: { ...current.launch, page: 'main' } }));
+      };
+
+      /** Patch the editable preset draft (deep enough for host/guests). */
+      const updateDraft = (updater) => {
+        const sid = sessionId;
+        if (sid === undefined || sid === null) return;
+        commit(sid, (current) => {
+          const draft = clonePreset(current.launch.draft);
+          if (draft === undefined) return current;
+          updater(draft);
+          return { ...current, launch: { ...current.launch, draft, savedAt: undefined } };
+        });
+      };
+
+      /** Save one preset through the Host, then reload the list selecting it. */
+      const persistPreset = async (preset, options = {}) => {
         const sid = sessionId;
         if (sid === undefined || sid === null || !remoteReady(remoteRef.current)) return;
         commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: true, error: undefined } }));
         try {
-          const result = await runCommand(sid, '/mcdev launch-profile --profile-b64=' + encodeArg(JSON.stringify(patch)) + ' --json');
+          const result = await runCommand(sid, '/mcdev preset-save --preset-b64=' + encodeArg(JSON.stringify(preset)) + ' --json');
           const data = result.data;
           if (result.kind === 'error' || data === undefined || data.ok === false) {
             const message = data !== undefined && typeof data.error === 'string' && data.error !== ''
               ? data.error
-              : messageOf(result, translate(t, 'saveFailed'));
+              : messageOf(result, translate(t, 'presetSaveFailed'));
             commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: false, error: message } }));
-            return;
+            return false;
           }
-          const profile = data.profile !== null && typeof data.profile === 'object' ? data.profile : {};
-          commit(sid, (current) => ({
-            ...current,
-            launch: {
-              ...current.launch,
-              profile,
-              world: typeof profile.world === 'string' && profile.world !== '' ? profile.world : current.launch.world,
-              skin: typeof profile.skin === 'string' ? profile.skin : '',
-              slim: profile.slim === true,
-              skinsDir: typeof profile.skinsDir === 'string' ? profile.skinsDir : current.launch.skinsDir,
-              busy: false,
-              savedAt: Date.now(),
-              error: undefined,
-            },
-          }));
-          flashNote(translate(t, 'configSaved'));
+          const saved = data.preset !== null && typeof data.preset === 'object' ? data.preset : preset;
+          if (options.activate === true && typeof saved.id === 'string') {
+            await runCommand(sid, '/mcdev preset-active --preset-id-b64=' + encodeArg(saved.id) + ' --json');
+          }
+          await loadPresets(sid, { selectId: typeof saved.id === 'string' ? saved.id : undefined });
+          commit(sid, (current) => ({ ...current, launch: { ...current.launch, savedAt: Date.now() } }));
+          return true;
         } finally {
           commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: false } }));
         }
       };
 
-      /** Create a world from the official template (or copy an existing world), then select it. */
-      const createLaunchWorld = async (worldName, worldFrom) => {
+      /** Save the current draft. */
+      const saveDraft = async () => {
+        const sid = sessionId;
+        const draft = viewOf(sid).launch.draft;
+        if (draft === undefined) return;
+        const ok = await persistPreset(draft, { activate: true });
+        if (ok) flashNote(translate(t, 'presetSaved'));
+      };
+
+      /** Add a new preset (starts from the detected defaults) and select it. */
+      const addPreset = async () => {
+        const sid = sessionId;
+        const launch = viewOf(sid).launch;
+        const count = launch.presets.length + 1;
+        const preset = {
+          name: translate(t, 'newPresetName') + ' ' + count,
+          gameExe: launch.detectedGameExe || '',
+          host: { world: '', behaviorPacks: null, resourcePacks: null, skin: '', slim: false, skinsDir: '' },
+          guests: [],
+        };
+        const ok = await persistPreset(preset, { activate: true });
+        if (ok) flashNote(translate(t, 'presetAdded'));
+      };
+
+      /** Delete the selected preset. */
+      const removePreset = async () => {
+        const sid = sessionId;
+        const launch = viewOf(sid).launch;
+        if (launch.selectedId === '' || launch.presets.length <= 1) return;
+        commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: true, error: undefined } }));
+        try {
+          const result = await runCommand(sid, '/mcdev preset-delete --preset-id-b64=' + encodeArg(launch.selectedId) + ' --json');
+          const data = result.data;
+          if (result.kind === 'error' || data === undefined || data.ok === false) {
+            const message = data !== undefined && typeof data.error === 'string' && data.error !== ''
+              ? data.error
+              : messageOf(result, translate(t, 'presetDeleteFailed'));
+            commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: false, error: message } }));
+            return;
+          }
+          flashNote(translate(t, 'presetDeleted'));
+          await loadPresets(sid);
+        } finally {
+          commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: false } }));
+        }
+      };
+
+      /** Switch the active preset. */
+      const selectPreset = async (presetId) => {
+        const sid = sessionId;
+        if (typeof presetId !== 'string' || presetId === '') return;
+        commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: true, error: undefined } }));
+        try {
+          await runCommand(sid, '/mcdev preset-active --preset-id-b64=' + encodeArg(presetId) + ' --json');
+          await loadPresets(sid, { selectId: presetId });
+        } finally {
+          commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: false } }));
+        }
+      };
+
+      /** Create a world for the preset (official template or copy of an existing world). */
+      const createPresetWorld = async (worldName, worldFrom) => {
         const sid = sessionId;
         const name = typeof worldName === 'string' ? worldName.trim() : '';
         if (sid === undefined || sid === null || !remoteReady(remoteRef.current) || name === '') return;
@@ -1688,25 +1831,24 @@ body[data-ds-dark-theme] .mcd-root{
             return;
           }
           flashNote(translate(t, 'worldCreated', { name }));
-          commit(sid, (current) => ({
-            ...current,
-            launch: { ...current.launch, newWorld: '', world: name, busy: false, savedAt: Date.now() },
-          }));
-          // Persist the new world as the selected one.
-          await saveLaunchProfile({ world: name });
-          await loadLaunchConfig(sid);
+          await loadPresets(sid);
+          updateDraft((draft) => {
+            draft.host = draft.host || {};
+            draft.host.world = name;
+          });
         } finally {
           commit(sid, (current) => ({ ...current, launch: { ...current.launch, busy: false } }));
         }
       };
 
-      // Entering the config tab loads worlds/packs/skins once per session.
       React.useEffect(() => {
-        if (mode !== 'full' || tab !== 'config') return undefined;
-        void loadLaunchConfig(sessionId);
+        if (!expanded) return undefined;
+        if (view.launch.page !== 'settings') return undefined;
+        if (view.launch.presets.length > 0 || view.launch.busy) return undefined;
+        void loadPresets(sessionId);
         return undefined;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-      }, [mode, tab, sessionId]);
+      }, [expanded, view.launch.page]);
 
       /** Force one status read (the only path that repeats it for the same session). */
       const refreshStatus = async () => {
@@ -1946,7 +2088,6 @@ body[data-ds-dark-theme] .mcd-root{
         { id: 'logs', label: 'logs', icon: 'console' },
         { id: 'exec', label: 'exec', icon: 'terminal' },
         { id: 'docs', label: 'docs', icon: 'book' },
-        { id: 'config', label: 'configTab', icon: 'tune' },
       ];
 
       /** Arrow-key navigation across the tab list. */
@@ -2016,6 +2157,22 @@ body[data-ds-dark-theme] .mcd-root{
           busy: action === 'reload',
           disabled: !canReload,
           onClick: () => void reloadGame(),
+        }),
+      ];
+
+      const settingsOpen = mode === 'full' && view.launch.page === 'settings';
+
+      /** Full-mode action row: settings sits at the far right, after a flexible spacer. */
+      const fullActions = [
+        ...primaryActions,
+        h('div', { className: 'mcd-spacer', key: 'spacer' }),
+        h(IconButton, {
+          key: 'settings',
+          icon: 'settings',
+          label: translate(t, 'settings'),
+          pressed: settingsOpen,
+          variant: settingsOpen ? 'tonal' : 'text',
+          onClick: () => (settingsOpen ? closeSettings() : openSettings()),
         }),
       ];
 
@@ -2124,7 +2281,31 @@ body[data-ds-dark-theme] .mcd-root{
       const errorLine = error !== undefined ? h('p', { className: 'mcd-error', key: 'error', role: 'alert' }, error) : null;
       const noteLine = note !== undefined ? h('p', { className: 'mcd-note', key: 'note' }, note) : null;
 
-      const tabBar = expanded
+      const settingsBar = settingsOpen
+        ? h(
+            'div',
+            { className: 'mcd-row mcd-settings-bar', key: 'settings-bar' },
+            h(IconButton, { key: 'back', icon: 'back', label: translate(t, 'back'), onClick: closeSettings }),
+            h('span', { className: 'mcd-section-title' }, translate(t, 'settingsTitle')),
+            h('div', { className: 'mcd-spacer', key: 'settings-spacer' }),
+            h(IconButton, {
+              key: 'add-preset',
+              icon: 'add',
+              label: translate(t, 'addPreset'),
+              disabled: view.launch.busy,
+              onClick: () => void addPreset(),
+            }),
+            h(IconButton, {
+              key: 'delete-preset',
+              icon: 'delete',
+              label: translate(t, 'deletePreset'),
+              disabled: view.launch.busy || view.launch.presets.length <= 1,
+              onClick: () => void removePreset(),
+            }),
+          )
+        : null;
+
+      const tabBar = expanded && !settingsOpen
         ? h(
             'div',
             { className: 'mcd-tabs', role: 'tablist', 'aria-label': translate(t, 'title'), key: 'tabs' },
@@ -2151,7 +2332,278 @@ body[data-ds-dark-theme] .mcd-root{
         : null;
 
       let content = null;
-      if (expanded && tab === 'logs') {
+      if (settingsOpen) {
+        const launch = view.launch;
+        const draft = launch.draft;
+        const host = draft !== undefined && draft.host !== null && typeof draft.host === 'object' ? draft.host : {};
+        const behaviorEntries = Array.isArray(launch.behavior) ? launch.behavior : [];
+        const resourceEntries = Array.isArray(launch.resource) ? launch.resource : [];
+        const behaviorSelected = new Set(
+          Array.isArray(host.behaviorPacks)
+            ? host.behaviorPacks
+            : behaviorEntries.filter((entry) => entry.source === 'project').map((entry) => entry.uuid),
+        );
+        const resourceSelected = new Set(
+          Array.isArray(host.resourcePacks)
+            ? host.resourcePacks
+            : resourceEntries.filter((entry) => entry.source === 'project').map((entry) => entry.uuid),
+        );
+        const worlds = Array.isArray(launch.worlds) ? launch.worlds : [];
+        const skinFilesList = Array.isArray(launch.skins) ? launch.skins : [];
+        const guests = draft !== undefined && Array.isArray(draft.guests) ? draft.guests : [];
+        const packList = (entries, selectedSet, onChange) =>
+          entries.length === 0
+            ? h('p', { className: 'mcd-empty' }, translate(t, 'noPacks'))
+            : h(
+                'div',
+                { className: 'mcd-pack-list' },
+                entries.map((entry) =>
+                  h(
+                    'label',
+                    { className: 'mcd-check', key: entry.uuid, title: typeof entry.dir === 'string' ? entry.dir : entry.uuid },
+                    h('input', {
+                      type: 'checkbox',
+                      checked: selectedSet.has(entry.uuid),
+                      onChange: (event) => {
+                        const next = new Set(selectedSet);
+                        if (event.target.checked) next.add(entry.uuid);
+                        else next.delete(entry.uuid);
+                        onChange(Array.from(next));
+                      },
+                    }),
+                    h('span', { className: 'mcd-check-name' }, typeof entry.name === 'string' && entry.name !== '' ? entry.name : entry.uuid),
+                    h('span', { className: 'mcd-badge' }, translate(t, entry.source === 'project' ? 'packSourceProject' : 'packSourceGlobal')),
+                  ),
+                ),
+              );
+        const skinSelect = (value, onChange) =>
+          h(
+            'select',
+            { className: 'mcd-select', value: typeof value === 'string' ? value : '', onChange: (event) => onChange(event.target.value) },
+            h('option', { key: 'skin-default', value: '' }, translate(t, 'skinDefault')),
+            skinFilesList.map((file) => h('option', { key: file.path, value: file.path }, file.name)),
+          );
+        content = h(
+          'div',
+          { className: 'mcd-panel', role: 'region', key: 'panel-settings' },
+          launch.error !== undefined && launch.error !== '' ? h('p', { className: 'mcd-error', key: 'preset-error', role: 'alert' }, launch.error) : null,
+          draft === undefined
+            ? h('p', { className: 'mcd-empty' }, launch.busy ? translate(t, 'busy') : translate(t, 'noPresets'))
+            : h(
+                'div',
+                { className: 'mcd-form', key: 'preset-form' },
+                h(
+                  'div',
+                  { className: 'mcd-config-section', key: 'section-preset' },
+                  h(
+                    'div',
+                    { className: 'mcd-row mcd-config-head' },
+                    h(
+                      'select',
+                      {
+                        className: 'mcd-select',
+                        value: launch.selectedId,
+                        'aria-label': translate(t, 'presets'),
+                        onChange: (event) => void selectPreset(event.target.value),
+                      },
+                      launch.presets.map((preset) =>
+                        h('option', { key: preset.id, value: preset.id }, preset.name + (preset.id === launch.activeId ? '  ✓' : '')),
+                      ),
+                    ),
+                  ),
+                  h('input', {
+                    className: 'mcd-input',
+                    value: typeof draft.name === 'string' ? draft.name : '',
+                    placeholder: translate(t, 'presetName'),
+                    'aria-label': translate(t, 'presetName'),
+                    onChange: (event) => updateDraft((next) => { next.name = event.target.value; }),
+                  }),
+                  h(
+                    'div',
+                    { className: 'mcd-row' },
+                    h('input', {
+                      className: 'mcd-input',
+                      value: typeof draft.gameExe === 'string' ? draft.gameExe : '',
+                      placeholder: launch.detectedGameExe !== '' ? launch.detectedGameExe : translate(t, 'gamePathPlaceholder'),
+                      'aria-label': translate(t, 'gamePath'),
+                      onChange: (event) => updateDraft((next) => { next.gameExe = event.target.value; }),
+                    }),
+                    h(IconButton, {
+                      key: 'use-detected',
+                      icon: 'refresh',
+                      label: translate(t, 'useDetectedPath'),
+                      disabled: launch.detectedGameExe === '' || launch.busy,
+                      onClick: () => updateDraft((next) => { next.gameExe = launch.detectedGameExe; }),
+                    }),
+                  ),
+                ),
+                h(
+                  'div',
+                  { className: 'mcd-config-section', key: 'section-host' },
+                  h('span', { className: 'mcd-section-title' }, translate(t, 'host')),
+                  h(
+                    'select',
+                    {
+                      className: 'mcd-select',
+                      value: typeof host.world === 'string' ? host.world : '',
+                      'aria-label': translate(t, 'world'),
+                      onChange: (event) => updateDraft((next) => { next.host = next.host || {}; next.host.world = event.target.value; }),
+                    },
+                    h('option', { key: 'world-default', value: '' }, translate(t, 'worldDefault')),
+                    worlds.map((world) =>
+                      h(
+                        'option',
+                        { key: world.name, value: world.name },
+                        world.name + (typeof world.levelName === 'string' && world.levelName !== world.name ? ' · ' + world.levelName : '') + '  (' + world.behaviorPacks + '/' + world.resourcePacks + ')',
+                      ),
+                    ),
+                  ),
+                  h(
+                    'div',
+                    { className: 'mcd-row' },
+                    h('input', {
+                      className: 'mcd-input',
+                      value: newWorldName,
+                      placeholder: translate(t, 'newWorldPlaceholder'),
+                      'aria-label': translate(t, 'newWorld'),
+                      onChange: (event) => setNewWorldName(event.target.value),
+                      onKeyDown: (event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          void createPresetWorld(newWorldName, newWorldFrom);
+                        }
+                      },
+                    }),
+                    h(IconButton, {
+                      key: 'create-world',
+                      icon: 'add',
+                      label: translate(t, 'create'),
+                      disabled: launch.busy || newWorldName.trim() === '',
+                      onClick: () => void createPresetWorld(newWorldName, newWorldFrom),
+                    }),
+                  ),
+                  h(
+                    'select',
+                    {
+                      className: 'mcd-select',
+                      value: newWorldFrom,
+                      'aria-label': translate(t, 'worldSource'),
+                      onChange: (event) => setNewWorldFrom(event.target.value),
+                    },
+                    h('option', { key: 'source-template', value: '' }, translate(t, 'worldSourceTemplate')),
+                    worlds.map((world) => h('option', { key: 'source-' + world.name, value: world.name }, translate(t, 'worldSourceClone') + ' ' + world.name)),
+                  ),
+                  h('span', { className: 'mcd-section-title' }, translate(t, 'behaviorPacks') + ' · ' + behaviorSelected.size),
+                  packList(behaviorEntries, behaviorSelected, (list) => updateDraft((next) => { next.host = next.host || {}; next.host.behaviorPacks = list; })),
+                  h('span', { className: 'mcd-section-title' }, translate(t, 'resourcePacks') + ' · ' + resourceSelected.size),
+                  packList(resourceEntries, resourceSelected, (list) => updateDraft((next) => { next.host = next.host || {}; next.host.resourcePacks = list; })),
+                  h(
+                    'div',
+                    { className: 'mcd-row' },
+                    h('span', { className: 'mcd-meta' }, translate(t, 'skins')),
+                    skinSelect(host.skin, (value) => updateDraft((next) => { next.host = next.host || {}; next.host.skin = value; })),
+                  ),
+                  h('input', {
+                    className: 'mcd-input',
+                    value: typeof host.skinsDir === 'string' ? host.skinsDir : '',
+                    placeholder: translate(t, 'skinsDirPlaceholder'),
+                    'aria-label': translate(t, 'skinsDir'),
+                    onChange: (event) => updateDraft((next) => { next.host = next.host || {}; next.host.skinsDir = event.target.value; }),
+                  }),
+                  h(IconButton, {
+                    key: 'reload-skins',
+                    icon: 'refresh',
+                    label: translate(t, 'refreshList'),
+                    disabled: launch.busy,
+                    onClick: () => void loadPresets(sessionId, { selectId: launch.selectedId, skinsDir: host.skinsDir }),
+                  }),
+                  h(
+                    'label',
+                    { className: 'mcd-check', key: 'host-slim' },
+                    h('input', {
+                      type: 'checkbox',
+                      checked: host.slim === true,
+                      onChange: (event) => updateDraft((next) => { next.host = next.host || {}; next.host.slim = event.target.checked; }),
+                    }),
+                    h('span', { className: 'mcd-check-name' }, translate(t, 'slim')),
+                  ),
+                ),
+                h(
+                  'div',
+                  { className: 'mcd-config-section', key: 'section-guests' },
+                  h(
+                    'div',
+                    { className: 'mcd-row mcd-config-head' },
+                    h('span', { className: 'mcd-section-title' }, translate(t, 'guests') + ' · ' + guests.length),
+                    h(IconButton, {
+                      key: 'add-guest',
+                      icon: 'add',
+                      label: translate(t, 'addGuest'),
+                      disabled: launch.busy || guests.length >= 7,
+                      onClick: () =>
+                        updateDraft((next) => {
+                          next.guests = Array.isArray(next.guests) ? next.guests : [];
+                          next.guests.push({ name: translate(t, 'guest') + ' ' + (next.guests.length + 1), skin: '', slim: false });
+                        }),
+                    }),
+                  ),
+                  guests.length === 0
+                    ? h('p', { className: 'mcd-empty' }, translate(t, 'noGuests'))
+                    : guests.map((guest, index) =>
+                        h(
+                          'div',
+                          { className: 'mcd-row mcd-guest-row', key: guest.id || 'guest-' + index },
+                          h('span', { className: 'mcd-guest-name' }, guest.name || translate(t, 'guest') + ' ' + (index + 1)),
+                          skinSelect(guest.skin, (value) =>
+                            updateDraft((next) => {
+                              next.guests[index].skin = value;
+                            }),
+                          ),
+                          h(
+                            'label',
+                            { className: 'mcd-check' },
+                            h('input', {
+                              type: 'checkbox',
+                              checked: guest.slim === true,
+                              onChange: (event) =>
+                                updateDraft((next) => {
+                                  next.guests[index].slim = event.target.checked;
+                                }),
+                            }),
+                            h('span', { className: 'mcd-check-name' }, translate(t, 'slim')),
+                          ),
+                          h(IconButton, {
+                            key: 'remove-guest',
+                            icon: 'delete',
+                            label: translate(t, 'deleteGuest'),
+                            disabled: launch.busy,
+                            onClick: () =>
+                              updateDraft((next) => {
+                                next.guests.splice(index, 1);
+                              }),
+                          }),
+                        ),
+                      ),
+                  h('p', { className: 'mcd-hint' }, translate(t, 'guestHint')),
+                ),
+                h('p', { className: 'mcd-hint', key: 'preset-hint' }, translate(t, 'presetHint')),
+                h(
+                  'div',
+                  { className: 'mcd-row', key: 'preset-save-row' },
+                  h(IconButton, {
+                    key: 'save-preset',
+                    icon: 'check',
+                    variant: 'filled',
+                    label: translate(t, 'save'),
+                    busy: launch.busy,
+                    disabled: launch.busy,
+                    onClick: () => void saveDraft(),
+                  }),
+                  h('span', { className: 'mcd-meta' }, launch.savedAt !== undefined ? translate(t, 'saved') : launch.presetsPath),
+                ),
+              ),
+        );
+      } else if (expanded && tab === 'logs') {
         const logs = view.logs;
         const launcher = logs.launcher;
         const game = logs.game;
@@ -2399,260 +2851,7 @@ body[data-ds-dark-theme] .mcd-root{
               )
             : null,
         );
-      } else if (expanded && tab === 'config') {
-        const launch = view.launch;
-        const selectedBehavior = new Set(launch.behaviorSelected);
-        const selectedResource = new Set(launch.resourceSelected);
-        const commitLaunch = (patch) => {
-          commit(sessionId, (current) => ({ ...current, launch: { ...current.launch, ...patch, savedAt: undefined } }));
-        };
-        const togglePack = (kind, uuid, checked) => {
-          const key = kind === 'behavior' ? 'behaviorSelected' : 'resourceSelected';
-          const next = new Set(launch[key]);
-          if (checked) next.add(uuid);
-          else next.delete(uuid);
-          commitLaunch({ [key]: Array.from(next) });
-        };
-        const setAllPacks = (kind, entries, checked) => {
-          const key = kind === 'behavior' ? 'behaviorSelected' : 'resourceSelected';
-          const all = Array.isArray(entries) ? entries.map((entry) => entry.uuid) : [];
-          commitLaunch({ [key]: checked ? all : [] });
-        };
-        const packSection = (kind, entries, selectedSet, titleKey) => {
-          const list = Array.isArray(entries) ? entries : [];
-          return h(
-            'div',
-            { className: 'mcd-config-section', key: 'section-' + kind },
-            h(
-              'div',
-              { className: 'mcd-row mcd-config-head' },
-              h('span', { className: 'mcd-section-title' }, translate(t, titleKey) + ' · ' + selectedSet.size),
-              h(
-                'button',
-                { type: 'button', className: 'mcd-chip', onClick: () => setAllPacks(kind, list, true) },
-                translate(t, 'selectAll'),
-              ),
-              h(
-                'button',
-                { type: 'button', className: 'mcd-chip', onClick: () => setAllPacks(kind, list, false) },
-                translate(t, 'clearAll'),
-              ),
-            ),
-            list.length === 0
-              ? h('p', { className: 'mcd-empty' }, translate(t, 'noPacks'))
-              : h(
-                  'div',
-                  { className: 'mcd-pack-list' },
-                  list.map((entry) =>
-                    h(
-                      'label',
-                      { className: 'mcd-check', key: entry.uuid, title: typeof entry.dir === 'string' ? entry.dir : entry.uuid },
-                      h('input', {
-                        type: 'checkbox',
-                        checked: selectedSet.has(entry.uuid),
-                        onChange: (event) => togglePack(kind, entry.uuid, event.target.checked),
-                      }),
-                      h('span', { className: 'mcd-check-name' }, typeof entry.name === 'string' && entry.name !== '' ? entry.name : entry.uuid),
-                      h('span', { className: 'mcd-badge' }, translate(t, entry.source === 'project' ? 'packSourceProject' : 'packSourceGlobal')),
-                    ),
-                  ),
-                ),
-          );
-        };
-        const worlds = Array.isArray(launch.worlds) ? launch.worlds : [];
-        const skinsList = Array.isArray(launch.skins) ? launch.skins : [];
-        content = h(
-          'div',
-          { className: 'mcd-panel', role: 'tabpanel', key: 'panel-config' },
-          launch.error !== undefined && launch.error !== '' ? h('p', { className: 'mcd-error', key: 'config-error', role: 'alert' }, launch.error) : null,
-          h(
-            'div',
-            { className: 'mcd-form', key: 'config-form' },
-            h(
-              'div',
-              { className: 'mcd-config-section', key: 'section-world' },
-              h(
-                'div',
-                { className: 'mcd-row mcd-config-head' },
-                h('span', { className: 'mcd-section-title' }, translate(t, 'world')),
-                h(IconButton, {
-                  key: 'reload-config',
-                  icon: 'refresh',
-                  label: translate(t, 'refreshList'),
-                  busy: launch.busy,
-                  disabled: launch.busy,
-                  onClick: () => void loadLaunchConfig(sessionId, launch.skinsDir),
-                }),
-              ),
-              h(
-                'div',
-                { className: 'mcd-row' },
-                h(
-                  'select',
-                  {
-                    className: 'mcd-select',
-                    'aria-label': translate(t, 'world'),
-                    value: typeof launch.world === 'string' ? launch.world : '',
-                    onChange: (event) => commitLaunch({ world: event.target.value }),
-                  },
-                  h('option', { key: 'world-default', value: '' }, translate(t, 'worldDefault')),
-                  worlds.map((world) => {
-                    const name = typeof world.name === 'string' ? world.name : '';
-                    const levelName = typeof world.levelName === 'string' && world.levelName !== name ? ' · ' + world.levelName : '';
-                    return h(
-                      'option',
-                      { key: name, value: name },
-                      name + levelName + '  (' + world.behaviorPacks + '/' + world.resourcePacks + ')',
-                    );
-                  }),
-                ),
-              ),
-              h(
-                'div',
-                { className: 'mcd-row' },
-                h('input', {
-                  className: 'mcd-input',
-                  value: typeof launch.newWorld === 'string' ? launch.newWorld : '',
-                  placeholder: translate(t, 'newWorldPlaceholder'),
-                  'aria-label': translate(t, 'newWorld'),
-                  onChange: (event) => commitLaunch({ newWorld: event.target.value }),
-                  onKeyDown: (event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      void createLaunchWorld(view.launch.newWorld, view.launch.worldFrom);
-                    }
-                  },
-                }),
-                h(IconButton, {
-                  key: 'create-world',
-                  icon: 'add',
-                  label: translate(t, 'create'),
-                  disabled: launch.busy || (typeof launch.newWorld === 'string' && launch.newWorld.trim() !== '') === false,
-                  onClick: () => void createLaunchWorld(view.launch.newWorld, view.launch.worldFrom),
-                }),
-              ),
-              h(
-                'div',
-                { className: 'mcd-row' },
-                h(
-                  'select',
-                  {
-                    className: 'mcd-select',
-                    'aria-label': translate(t, 'worldSource'),
-                    value: typeof launch.worldFrom === 'string' ? launch.worldFrom : '',
-                    onChange: (event) => commitLaunch({ worldFrom: event.target.value }),
-                  },
-                  h('option', { key: 'source-template', value: '' }, translate(t, 'worldSourceTemplate')),
-                  worlds
-                    .filter((world) => typeof world.name === 'string')
-                    .map((world) => h('option', { key: 'source-' + world.name, value: world.name }, translate(t, 'worldSourceClone') + ' ' + world.name)),
-                ),
-              ),
-            ),
-            packSection('behavior', launch.behavior, selectedBehavior, 'behaviorPacks'),
-            packSection('resource', launch.resource, selectedResource, 'resourcePacks'),
-            h(
-              'div',
-              { className: 'mcd-config-section', key: 'section-skin' },
-              h(
-                'div',
-                { className: 'mcd-row mcd-config-head' },
-                h('span', { className: 'mcd-section-title' }, translate(t, 'skins')),
-                h(IconButton, {
-                  key: 'reload-skins',
-                  icon: 'refresh',
-                  label: translate(t, 'refreshList'),
-                  busy: launch.busy,
-                  disabled: launch.busy,
-                  onClick: () => void loadLaunchConfig(sessionId, launch.skinsDir),
-                }),
-              ),
-              h(
-                'div',
-                { className: 'mcd-row' },
-                h('input', {
-                  className: 'mcd-input',
-                  value: typeof launch.skin === 'string' ? launch.skin : '',
-                  placeholder: translate(t, 'skinPathPlaceholder'),
-                  'aria-label': translate(t, 'skins'),
-                  onChange: (event) => commitLaunch({ skin: event.target.value }),
-                }),
-                h(IconButton, {
-                  key: 'skin-default',
-                  icon: 'close',
-                  label: translate(t, 'skinDefault'),
-                  onClick: () => commitLaunch({ skin: '' }),
-                }),
-              ),
-              h(
-                'div',
-                { className: 'mcd-row' },
-                h('input', {
-                  className: 'mcd-input',
-                  value: typeof launch.skinsDir === 'string' ? launch.skinsDir : '',
-                  placeholder: translate(t, 'skinsDirPlaceholder'),
-                  'aria-label': translate(t, 'skinsDir'),
-                  onChange: (event) => commitLaunch({ skinsDir: event.target.value }),
-                }),
-              ),
-              skinsList.length === 0
-                ? h('p', { className: 'mcd-empty' }, translate(t, 'noSkins'))
-                : h(
-                    'div',
-                    { className: 'mcd-skin-list', key: 'skins' },
-                    skinsList.map((file) =>
-                      h(
-                        'button',
-                        {
-                          type: 'button',
-                          key: file.path,
-                          className: 'mcd-chip',
-                          'data-on': launch.skin === file.path ? 'true' : 'false',
-                          title: file.path,
-                          onClick: () => commitLaunch({ skin: file.path }),
-                        },
-                        file.name,
-                      ),
-                    ),
-                  ),
-              h(
-                'label',
-                { className: 'mcd-check', key: 'slim' },
-                h('input', {
-                  type: 'checkbox',
-                  checked: launch.slim === true,
-                  onChange: (event) => commitLaunch({ slim: event.target.checked }),
-                }),
-                h('span', { className: 'mcd-check-name' }, translate(t, 'slim')),
-              ),
-            ),
-            h('p', { className: 'mcd-hint', key: 'config-hint' }, translate(t, 'configHint')),
-            h(
-              'div',
-              { className: 'mcd-row', key: 'save-row' },
-              h(IconButton, {
-                key: 'save',
-                icon: 'check',
-                variant: 'filled',
-                label: translate(t, 'save'),
-                busy: launch.busy,
-                disabled: launch.busy,
-                onClick: () =>
-                  void saveLaunchProfile({
-                    world: launch.world,
-                    behaviorPacks: launch.behaviorSelected,
-                    resourcePacks: launch.resourceSelected,
-                    skin: launch.skin,
-                    slim: launch.slim,
-                    skinsDir: launch.skinsDir,
-                  }),
-              }),
-              h('span', { className: 'mcd-meta' }, launch.savedAt !== undefined ? translate(t, 'saved') : ''),
-            ),
-          ),
-        );
       }
-
       if (mode === 'icon') {
         return h(
           'div',
@@ -2779,7 +2978,7 @@ body[data-ds-dark-theme] .mcd-root{
           h(
             'div',
             { className: 'mcd-body', key: 'body' },
-            h('div', { className: 'mcd-actions-row', key: 'actions' }, primaryActions),
+            h('div', { className: 'mcd-actions-row', key: 'actions' }, fullActions),
             bridgeReady ? null : h('p', { className: 'mcd-hint', key: 'bridge' }, translate(t, 'remoteUnavailable')),
             progress,
             idleHint,

@@ -52,37 +52,53 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
 /mcdev worlds                    # 列出可选世界与当前生效世界
 /mcdev packs                     # 列出可选行为包 / 资源包与当前选择
 /mcdev skins                     # 列出皮肤 PNG 与当前皮肤
-/mcdev launch-config             # 一次返回启动配置 + 世界/包/皮肤清单（面板用）
-/mcdev launch-profile --profile-b64 <base64 JSON>  # 保存启动配置（插件自有文件）
-/mcdev world-create --world-name-b64 <base64>      # 从模板新建世界（不覆盖已有）
+/mcdev world-create --world-name-b64 <base64>      # 从模板/已有世界新建世界（不覆盖已有）
+/mcdev presets                   # 预设集合 + 世界/包/皮肤清单（设置页用）
+/mcdev preset-save --preset-b64 <base64 JSON>       # 新增/更新预设
+/mcdev preset-delete <presetId>                     # 删除预设（至少保留一个）
+/mcdev preset-active <presetId>                     # 设置当前激活预设
 /mcdev stop
 ```
 
 所有命令加 `--json` 返回纯 JSON，Web 面板即通过 `/mcdev ... --json`（Commands Remote）取数。
 
-### 启动配置（世界 / 行为包 / 资源包 / 皮肤）
+### 启动预设（presets）
 
-- 保存在 **`<工程>/.mcdev/launch-profile.json`**，属于插件自有状态，**不会修改 `.mcdev.json`**：
+一个预设 = **游戏路径 + 1 个 host + 若干 guest**，保存在 **`<工程>/.mcdev/launch-presets.json`**（插件自有状态，**不修改 `.mcdev.json`**）：
 
 ```json
 {
-  "world": "MC_DEV_WORLD",
-  "behaviorPacks": ["<uuid>", "..."],
-  "resourcePacks": ["<uuid>"],
-  "skin": "C:\\Users\\me\\Pictures\\skins\\hero.png",
-  "slim": false,
-  "skinsDir": "C:\\Users\\me\\Pictures\\skins"
+  "version": 1,
+  "activeId": "p-xxxxxxxx",
+  "presets": [
+    {
+      "id": "p-xxxxxxxx",
+      "name": "默认预设",
+      "gameExe": "D:/MCStudio/MinecraftPE_Netease/3.10.0.436581/Minecraft.Windows.exe",
+      "host": {
+        "world": "MC_DEV_WORLD",
+        "behaviorPacks": ["<uuid>"],
+        "resourcePacks": ["<uuid>"],
+        "skin": "C:/skins/hero.png",
+        "slim": false,
+        "skinsDir": "C:/skins"
+      },
+      "guests": [{ "id": "g-xxxxxxxx", "name": "Guest 1", "skin": "C:/skins/guest.png", "slim": false }]
+    }
+  ]
 }
 ```
 
-- `world` 为空 = 跟随 `.mcdev.json`；`behaviorPacks`/`resourcePacks` 为 `null` = 工程解析出的全部包；
-- 启动时按选择**追加**包（不删除世界里已有的包）；`skinsDir` 只用于面板枚举 PNG，`skin` 才是实际使用的皮肤路径；
-- `world-create` 从官方 `world_templates` 复制并命名，目标已存在则拒绝；
-- `start` 也可以传一次性覆盖：`/mcdev start --world NAME --behavior-packs u1,u2 --resource-packs u3 --skin <路径> --slim`。
+- **启动按钮 = 启动当前激活预设的 host**；`gameExe` 为空时自动探测（不同机器安装位置可能不同）；
+- host 可选世界 / 行为包 / 资源包 / 皮肤 / 纤细模型；**guest 只能选皮肤**（世界与包由 host 决定）；
+- guest 启动项目前**只保存、不自动拉起**（等待联机方案；面板上有说明）；
+- `world` 为空 = 跟随 `.mcdev.json`；`behaviorPacks`/`resourcePacks` 为 `null` = 工程解析出的全部包；启动时按选择**追加**包（不删除世界里已有的包）；
+- 首次使用自动创建**默认预设**：世界/包/皮肤/gameExe 取自当前工程能检索到的内容；
+- 面板 full 模式动作行**最右侧的齿轮**打开「启动预设」设置页：可新增/删除预设、编辑名称与游戏路径、选择 host 配置、添加/删除 guest。
 
 ### Agent 工具 `mcdev`
 
-单入口 + `action`（`status/discover/start/stop/logs/exec/reload/screenshot/jsonui/input/docs_search/docs_read/config/mcp_tools/mcp/help`），参数说明见工具 schema。为了少占用上下文，动作细节用 `action: "help"` 按需展开。
+单入口 + `action`（`status/discover/start/stop/logs/exec/reload/screenshot/jsonui/input/wait/docs_search/docs_read/config/worlds/packs/skins/world-create/presets/preset-save/preset-delete/preset-active/help`），参数说明见工具 schema。为了少占用上下文，动作细节用 `action: "help"` 按需展开。
 
 ### Web 面板
 
@@ -92,7 +108,7 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
 
 - **icon 模式**：只显示一个 56dp 圆角图标（Minecraft 方块 + 状态点：绿=已进入游戏 / 黄=启动中 / 红=失败），**没有任何弹层/文字**；
 - **compact 模式**：点击图标进入——图标 + 标题 + 状态 + 「放大」按钮，以及启动/停止、刷新、重载三个动作；不展示日志等其余内容；
-- **full 模式**：compact 点「放大」进入——完整 M3 卡片（拖拽条、标题栏、动作行、日志/执行代码/文档/配置四个分段页）；
+- **full 模式**：compact 点「放大」进入——完整 M3 卡片（拖拽条、标题栏、动作行、日志/执行代码/文档三个分段页）；动作行**最右侧的齿轮**在面板内打开「启动预设」设置页（预设列表、游戏路径、host 世界/包/皮肤、guest 皮肤），设置页用返回按钮回到主界面；
 - **切换规则**：icon 点图标 → compact；compact 点图标 → icon；compact 点放大 → full；full 点缩小 → compact；full 点图标 → icon；
 - **启动/停止合并为一个按钮**（▶ / ■ / ✕），其余动作全部是带 tooltip 与 aria-label 的图标按钮；
 - 全部颜色/圆角/字体走 M3 token（Minecraft 绿主色、surface-container 系列、state layer、深浅主题 fallback、`prefers-reduced-motion`）；

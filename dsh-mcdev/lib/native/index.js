@@ -54,6 +54,19 @@ import {
   worldNameOf,
   writeLaunchProfile,
 } from './launchProfile.js';
+import {
+  defaultPreset,
+  findPreset,
+  normalizePresets,
+  presetFromLegacyProfile,
+  presetsPath,
+  readPresets,
+  removePreset,
+  resolveHostLaunch,
+  setActivePreset,
+  upsertPreset,
+  writePresets,
+} from './presets.js';
 
 const DEFAULT_START_TIMEOUT_MS = 180000;
 const DEFAULT_LOG_LIMIT = 2000;
@@ -264,10 +277,85 @@ export class NativeProvider {
     return { profile, ...skinFiles(dir, withDir) };
   }
 
-  /** 新建世界：默认从官方模板复制；fromWorld 可指定复制来源世界。 */
+  /** 从官方模板新建世界（绝不覆盖已有世界）。 */
   createWorld(worldName, fromWorld) {
     if (!isValidWorldName(worldName)) throw new Error('世界名不合法：不能为空，不能含路径分隔符或特殊字符，最长 64 字符');
     return createWorld(worldName, fromWorld);
+  }
+
+  // ---------------------------------------------------------------------------
+  // 启动预设（presets）：游戏路径 + host（世界/包/皮肤）+ guest（皮肤）
+  // ---------------------------------------------------------------------------
+
+  /** 读取预设集合；文件不存在时用当前工程可检索项创建内置默认预设。 */
+  ensurePresetsState(projectDir) {
+    return this._ensurePresets(projectDir);
+  }
+
+  /** 预设集合 + 探测到的游戏路径（面板设置页用）。 */
+  presets(projectDir) {
+    const dir = path.resolve(projectDir || this.projectDir);
+    const config = this.readConfig(dir);
+    const state = this._ensurePresets(dir);
+    const game = discoverGame(config);
+    return {
+      path: presetsPath(dir),
+      state,
+      detectedGameExe: game.exe || '',
+      versions: game.versions || [],
+      presetCount: state.presets.length,
+    };
+  }
+
+  /** 新增或更新一个预设（按 id）。 */
+  savePreset(preset, projectDir) {
+    if (!isPlainObject(preset)) throw new Error('savePreset(preset) 需要一个普通对象');
+    const dir = path.resolve(projectDir || this.projectDir);
+    const state = this._ensurePresets(dir);
+    const { state: next, preset: saved, created } = upsertPreset(state, preset);
+    const written = writePresets(dir, next);
+    return { path: written.path, state: written.state, preset: saved, created };
+  }
+
+  /** 删除一个预设（至少保留一个）。 */
+  deletePreset(presetId, projectDir) {
+    const dir = path.resolve(projectDir || this.projectDir);
+    const state = this._ensurePresets(dir);
+    const next = removePreset(state, presetId);
+    const written = writePresets(dir, next);
+    return { path: written.path, state: written.state };
+  }
+
+  /** 设置当前激活预设。 */
+  setActivePreset(presetId, projectDir) {
+    const dir = path.resolve(projectDir || this.projectDir);
+    const state = this._ensurePresets(dir);
+    const next = setActivePreset(state, presetId);
+    const written = writePresets(dir, next);
+    return { path: written.path, state: written.state };
+  }
+
+  /** 确保预设文件存在：旧 launch-profile 迁移 / 默认预设从工程可检索项生成。 */
+  _ensurePresets(projectDir) {
+    const dir = path.resolve(projectDir || this.projectDir);
+    const existing = readPresets(dir);
+    if (existing !== null) return existing;
+    const config = this.readConfig(dir);
+    const game = discoverGame(config);
+    const legacy = readLaunchProfile(dir);
+    const skins = skinFiles(dir, legacy);
+    const seed = {
+      gameExe: game.exe || '',
+      world: legacy.world || '',
+      skin: legacy.skin || '',
+      slim: legacy.slim === true,
+      skinsDir: legacy.skinsDir || (skins.files.length > 0 ? skins.files[0].dir : ''),
+    };
+    const legacyUsed = legacy.world !== '' || legacy.skin !== '' || legacy.behaviorPacks !== null || legacy.resourcePacks !== null;
+    const preset = legacyUsed ? presetFromLegacyProfile(legacy, seed) : defaultPreset(seed);
+    const state = normalizePresets({ activeId: preset.id, presets: [preset] });
+    writePresets(dir, state);
+    return state;
   }
 
   /** 发现游戏 exe / 版本 / 开发世界 / bridge 包状态。 */
@@ -282,8 +370,10 @@ export class NativeProvider {
     }
     const configSafe = config || {};
     const game = discoverGame(configSafe);
-    const profile = readLaunchProfile(dir);
-    const effectiveWorld = worldNameOf(configSafe, profile);
+    const presetState = readPresets(dir);
+    const activePreset = presetState !== null ? findPreset(presetState, '') : null;
+    const hostLaunch = activePreset !== null ? resolveHostLaunch(activePreset, configSafe) : { world: '' };
+    const effectiveWorld = worldNameOf(configSafe, { world: hostLaunch.world });
     const worldDir = worldDirOf(dir, { ...configSafe, world_folder_name: effectiveWorld });
     const packDir = bridgePackDir();
     const result = {
@@ -294,9 +384,11 @@ export class NativeProvider {
       gameVersion: game.version,
       versions: game.versions,
       launch: {
-        path: launchProfilePath(dir),
-        profile,
-        world: effectiveWorld,
+        path: presetsPath(dir),
+        presetId: activePreset !== null ? activePreset.id : undefined,
+        presetName: activePreset !== null ? activePreset.name : undefined,
+        guests: activePreset !== null ? activePreset.guests.length : 0,
+        presetCount: presetState !== null ? presetState.presets.length : 0,
         worlds: listWorlds().length,
       },
       world: {
@@ -346,6 +438,11 @@ export class NativeProvider {
         name: this._worldName || DEFAULT_WORLD_NAME,
         dir: this._worldDir || undefined,
         devConfigPath: this._worldDir ? cppconfigPathOf(this._worldDir) : undefined,
+      },
+      launch: {
+        presetId: this._presetId || undefined,
+        presetName: this._presetName || undefined,
+        guests: this._guestCount || 0,
       },
       bridge: {
         port: this._activePort || 0,
@@ -404,19 +501,16 @@ export class NativeProvider {
     const waitMs = options.waitMs === undefined || options.waitMs === null ? 0 : Math.max(0, Number(options.waitMs) || 0);
     this._notes = [];
     const config = this.readConfig(dir);
-    const game = discoverGame(config);
-    if (!game.exe) {
-      throw new Error(
-        '找不到 Minecraft.Windows.exe：请安装网易 ModPC 开发客户端，或在 .mcdev.json 的 game_executable_path 指定完整路径。',
-      );
-    }
-    this._gameExe = game.exe;
-    this._gameVersion = game.version || '';
 
-    // 启动配置（插件自有）：世界 / 行为包 / 资源包 / 皮肤，可被本次 start 参数覆盖。
-    const profile = readLaunchProfile(dir);
+    // 启动预设：游戏路径 + host（世界/包/皮肤）+ guest（仅皮肤）。
+    // 预设先于游戏发现解析：预设可以指定自己的 exe（不同机器安装位置可能不同）。
+    const presetState = this._ensurePresets(dir);
+    const requestedPresetId = typeof options.presetId === 'string' ? options.presetId : '';
+    const preset = findPreset(presetState, requestedPresetId) || findPreset(presetState, '');
+    if (preset === null || preset === undefined) throw new Error('找不到可用的启动预设：请先在设置里创建一个');
+    const host = resolveHostLaunch(preset, config);
     const worldName = worldNameOf(config, {
-      world: typeof options.world === 'string' && options.world.trim() !== '' ? options.world : profile.world,
+      world: typeof options.world === 'string' && options.world.trim() !== '' ? options.world : host.world,
     });
     const skinInfo = config.skin_info && typeof config.skin_info === 'object' ? config.skin_info : {};
     const launchConfig = {
@@ -424,11 +518,30 @@ export class NativeProvider {
       world_folder_name: worldName,
       world_name: worldName,
       skin_info: {
-        skin: options.skin !== undefined ? String(options.skin) : String(profile.skin || skinInfo.skin || ''),
-        slim: options.slim !== undefined ? options.slim === true : profile.slim === true ? true : Boolean(skinInfo.slim),
+        skin: options.skin !== undefined ? String(options.skin) : String(host.skin || skinInfo.skin || ''),
+        slim: options.slim !== undefined ? options.slim === true : host.skin !== '' ? host.slim === true : Boolean(skinInfo.slim),
       },
     };
     this._worldName = worldName;
+    this._presetId = preset.id;
+    this._presetName = preset.name;
+    this._guestCount = Array.isArray(preset.guests) ? preset.guests.length : 0;
+
+    let game = discoverGame(config);
+    if (preset.gameExe !== '') {
+      if (!fs.existsSync(preset.gameExe)) {
+        throw new Error(`预设「${preset.name}」的游戏路径不存在：${preset.gameExe}（请在设置页修改该预设的游戏路径）`);
+      }
+      const match = /[\\/]([^\\/]+)[\\/]Minecraft\.Windows\.exe$/i.exec(preset.gameExe);
+      game = { ...game, exe: preset.gameExe, version: match ? match[1] : game.version };
+    }
+    if (!game.exe) {
+      throw new Error(
+        '找不到 Minecraft.Windows.exe：请在预设里填写游戏路径，或在 .mcdev.json 的 game_executable_path 指定完整路径。',
+      );
+    }
+    this._gameExe = game.exe;
+    this._gameVersion = game.version || '';
 
     // 0) 世界级互斥锁：同一开发世界只允许一个 native provider 会话（并发会破坏世界 DB，实测会崩）
     if (!this._worldLock) {
@@ -462,6 +575,10 @@ export class NativeProvider {
       if (worldInfo.created) this._notes.push(`[dsh] 已从模板创建开发世界：${worldInfo.worldDir}`);
       devConfig = writeDevConfig(worldInfo.worldDir, launchConfig);
       this._notes.push(`[dsh] dev_config.cppconfig 已写入：${devConfig.path}`);
+      this._notes.push(`[dsh] 启动预设：${preset.name}（game=${game.exe}）`);
+      if (this._guestCount > 0) {
+        this._notes.push(`[dsh] 预设包含 ${this._guestCount} 个 guest 启动项（本次只启动 host；guest 自动拉起等待联机方案）`);
+      }
       if (launchConfig.skin_info.skin !== '') this._notes.push(`[dsh] 皮肤：${launchConfig.skin_info.skin}（slim=${launchConfig.skin_info.slim}）`);
 
       // 2.5) 外部实例检查：世界锁只约束本插件，外部客户端（MC Studio / 手动开的 ModPC）不检查它。
@@ -474,11 +591,11 @@ export class NativeProvider {
         );
       }
 
-      // 3) 可选包清单：启动配置的白名单（null = 工程全部），解析成实际要附加的 uuid。
+      // 3) 可选包清单：host 预设的白名单（null = 工程全部），解析成实际要附加的 uuid。
       const catalog = packCatalog(dir, launchConfig);
       selectedPacks = resolveSelectedPacks(catalog, {
-        behaviorPacks: options.behaviorPacks !== undefined ? options.behaviorPacks : profile.behaviorPacks,
-        resourcePacks: options.resourcePacks !== undefined ? options.resourcePacks : profile.resourcePacks,
+        behaviorPacks: options.behaviorPacks !== undefined ? options.behaviorPacks : host.behaviorPacks,
+        resourcePacks: options.resourcePacks !== undefined ? options.resourcePacks : host.resourcePacks,
       });
       for (const missing of selectedPacks.missing) {
         this._notes.push(`[dsh] warning: 选择的包不存在，已忽略 uuid=${missing}`);
