@@ -33,7 +33,9 @@ export class GameChannel extends EventEmitter {
     this._server = null;
     this._port = 0;
     this._clients = new Set();
+    /** 每侧可以同时存在多个游戏实例（例如同时开多个客户端/服务端）；保留最近连接用于默认路由。 */
     this._bySide = { client: null, server: null };
+    this._nextClientId = 1;
     this._pending = new Map();
     this._nextId = 1;
     this._closed = false;
@@ -50,22 +52,33 @@ export class GameChannel extends EventEmitter {
     return this._port;
   }
 
-  /** 当前已连接的游戏侧列表。 */
+  /** 当前已连接的游戏侧列表（同一侧可能同时有多个实例）。 */
   clients() {
     return [...this._clients]
       .filter((client) => client.side)
       .map((client) => ({
+        id: client.id,
         side: client.side,
+        pid: client.pid,
+        levelId: client.levelId || '',
         version: client.version || '',
         since: client.since,
         remotePort: client.socket && client.socket.remotePort,
       }));
   }
 
-  /** 取某一侧的连接（无则 null）。 */
+  /** 取某一侧的最近连接（无则 null）。 */
   clientForSide(side) {
     if (side !== 'client' && side !== 'server') return null;
     return this._bySide[side] || null;
+  }
+
+  /** 按连接 id 取连接（机器切换用），不存在返回 null。 */
+  clientById(id) {
+    for (const client of this._clients) {
+      if (client.id === id && client.side) return client;
+    }
+    return null;
   }
 
   /** 启动监听（127.0.0.1 随机端口）。 */
@@ -130,22 +143,26 @@ export class GameChannel extends EventEmitter {
     });
   }
 
-  /** 发送 ping 并等待 pong，返回游戏侧自报状态（含 inWorld）。 */
-  async ping(side = 'client', timeoutMs = 3000) {
-    const response = await this._request(side, { type: 'ping' }, { timeoutMs });
+  /** 发送 ping 并等待 pong，返回游戏侧自报状态（含 inWorld）。machine 为空时走该侧最近连接。 */
+  async ping(side = 'client', timeoutMs = 3000, machine = '') {
+    const response = await this._request(side, { type: 'ping' }, { timeoutMs, machine });
     return response && response.data;
   }
 
   /**
    * 在指定侧执行 Python 代码。
+   * @param {'client'|'server'} side
+   * @param {string} code
+   * @param {{timeoutMs?:number, machine?:string}} [options] machine = 连接 id（clients() 返回）
    * @returns {Promise<{ok:boolean, returnValue?:any, returnType?:string, returnRepr?:string, error?:string}>}
    */
   async exec(side, code, options = {}) {
     const timeoutMs = Number(options.timeoutMs) || this.defaultTimeoutMs;
+    const machine = typeof options.machine === 'string' ? options.machine : '';
     const response = await this._request(
       side,
       { type: 'exec', code: String(code), side, timeout: Math.max(1, Math.round(timeoutMs / 1000)) },
-      { timeoutMs },
+      { timeoutMs, machine },
     );
     return {
       ok: Boolean(response && response.ok),
@@ -157,8 +174,8 @@ export class GameChannel extends EventEmitter {
   }
 
   /** 请求游戏侧重载（当前 bridge 返回 unsupported）。 */
-  async reload(side = 'client', timeoutMs = 10000) {
-    const response = await this._request(side, { type: 'reload' }, { timeoutMs });
+  async reload(side = 'client', timeoutMs = 10000, machine = '') {
+    const response = await this._request(side, { type: 'reload' }, { timeoutMs, machine });
     return { ok: Boolean(response && response.ok), error: response && response.error ? String(response.error) : undefined };
   }
 
@@ -197,7 +214,16 @@ export class GameChannel extends EventEmitter {
   // -------------------------------------------------------------------------
 
   _onConnection(socket) {
-    const client = { socket, side: null, version: '', since: Date.now(), buffer: '' };
+    const client = {
+      id: `c${this._nextClientId++}`,
+      socket,
+      side: null,
+      pid: 0,
+      levelId: '',
+      version: '',
+      since: Date.now(),
+      buffer: '',
+    };
     this._clients.add(client);
     socket.setEncoding('utf8');
     socket.setNoDelay(true);
@@ -249,19 +275,25 @@ export class GameChannel extends EventEmitter {
       const side = message.side === 'server' ? 'server' : 'client';
       client.side = side;
       client.version = String(message.version || '');
-      // 同一侧只保留最新连接（重连时替换旧连接）
-      const previous = this._bySide[side];
-      if (previous && previous !== client) {
-        try {
-          previous.socket.destroy();
-        } catch {
-          /* ignore */
+      client.pid = Number(message.pid) > 0 ? Number(message.pid) : 0;
+      client.levelId = typeof message.levelId === 'string' ? message.levelId : '';
+      // 同一实例重连（同 side + 同 pid）时替换旧连接；不同实例并存在列表里。
+      if (client.pid > 0) {
+        for (const other of [...this._clients]) {
+          if (other !== client && other.pid === client.pid && other.side === side) {
+            try {
+              other.socket.destroy();
+            } catch {
+              /* ignore */
+            }
+            this._clients.delete(other);
+          }
         }
-        this._clients.delete(previous);
       }
       this._bySide[side] = client;
       this.emit('hello', {
         side,
+        machine: { id: client.id, side, pid: client.pid, levelId: client.levelId },
         version: client.version,
         clients: this.clients(),
       });
@@ -273,6 +305,9 @@ export class GameChannel extends EventEmitter {
     }
     if (type === 'log') {
       this.emit('log', {
+        id: client.id,
+        pid: client.pid,
+        levelId: client.levelId,
         side: message.side || client.side || '',
         stream: message.stream === 'stderr' ? 'stderr' : 'stdout',
         text: String(message.text === undefined || message.text === null ? '' : message.text),
@@ -295,7 +330,11 @@ export class GameChannel extends EventEmitter {
   _dropClient(client) {
     if (!this._clients.has(client)) return;
     this._clients.delete(client);
-    if (client.side && this._bySide[client.side] === client) this._bySide[client.side] = null;
+    if (client.side && this._bySide[client.side] === client) {
+      // 该侧还有其它实例时回退到最近一个；否则置空。
+      const remaining = [...this._clients].filter((item) => item.side === client.side);
+      this._bySide[client.side] = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+    }
     // 该连接上的未完成请求立即失败（避免调用方干等超时）
     for (const [id, pending] of this._pending) {
       if (pending.client === client) {
@@ -304,7 +343,7 @@ export class GameChannel extends EventEmitter {
         pending.reject(new Error(`游戏内 ${client.side || 'unknown'} 侧连接已断开`));
       }
     }
-    this.emit('disconnect', { side: client.side, clients: this.clients() });
+    this.emit('disconnect', { side: client.side, machine: { id: client.id, side: client.side, pid: client.pid }, clients: this.clients() });
   }
 
   _write(client, object) {
@@ -319,8 +358,12 @@ export class GameChannel extends EventEmitter {
 
   _request(side, payload, options = {}) {
     if (this._closed) return Promise.reject(new Error('bridge 连接已关闭'));
-    const client = this.clientForSide(side);
+    const machine = typeof options.machine === 'string' ? options.machine : '';
+    const client = machine !== '' ? this.clientById(machine) : this.clientForSide(side);
     if (!client) {
+      if (machine !== '') {
+        return Promise.reject(new Error(`所选游戏实例已断开（machine=${machine}），请重新选择机器`));
+      }
       return Promise.reject(
         new Error(`游戏内 ${side} 侧 bridge 尚未连接（请确认游戏已进入存档，且 dsh_bridge 行为包已安装并出现在世界清单中）`),
       );

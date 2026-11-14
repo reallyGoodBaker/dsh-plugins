@@ -100,7 +100,7 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
 
 ### Agent 工具 `mcdev`
 
-单入口 + `action`（`status/discover/start/stop/logs/exec/reload/screenshot/jsonui/input/wait/docs_search/docs_read/config/worlds/packs/skins/world-create/presets/preset-save/preset-delete/preset-active/help`），参数说明见工具 schema。为了少占用上下文，动作细节用 `action: "help"` 按需展开。
+单入口 + `action`（`status/discover/start/stop/games/logs/game_logs/exec/reload/screenshot/jsonui/input/wait/docs_search/docs_read/worlds/packs/skins/world-create/pack-import/skin-import/presets/preset-save/preset-delete/preset-active/help`），参数说明见工具 schema。为了少占用上下文，动作细节用 `action: "help"` 按需展开。多游戏实例时 `exec`/`logs`/`game_logs`/`reload` 可带 `machine`（先用 `games` 取实例 id）。
 
 ### Web 面板
 
@@ -111,6 +111,7 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
 - **icon 模式**：只显示一个 56dp 圆角图标（Minecraft 方块 + 状态点：绿=已进入游戏 / 黄=启动中 / 红=失败），**没有任何弹层/文字**；
 - **compact 模式**：点击图标进入——图标 + 标题 + 状态 + 「放大」按钮，以及启动/停止、刷新、重载三个动作；不展示日志等其余内容；
 - **full 模式**：compact 点「放大」进入——完整 M3 卡片（拖拽条、标题栏、动作行、M3 primary tabs 日志/执行代码/文档）；动作行**最右侧的齿轮**在面板内打开设置页（预设卡片列表 → 编辑单个预设），返回按钮逐级回到主界面；
+- **多游戏实例**：同时连接多个游戏时，日志页（游戏日志源）与执行代码页会出现「游戏实例」选择器（M3 下拉：自动/最近连接，或按 客户端/服务端、世界、版本、是否本插件启动 区分），切换后查看/执行的日志与代码只作用于所选实例；
 - **切换规则**：icon 点图标 → compact；compact 点图标 → icon；compact 点放大 → full；full 点缩小 → compact；full 点图标 → icon；
 - **启动/停止合并为一个按钮**（▶ / ■ / ✕），其余动作全部是带 tooltip 与 aria-label 的图标按钮；
 - 全部颜色/圆角/字体走 M3 token（Minecraft 绿主色、surface-container 系列、state layer、深浅主题 fallback、`prefers-reduced-motion`）；

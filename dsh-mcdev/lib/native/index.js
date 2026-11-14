@@ -166,6 +166,9 @@ export class NativeProvider {
     this._activePort = 0;
     this._logFollower = null;
     this._idleLogs = new LogBuffer(this.logLimit);
+    /** 每个游戏实例（bridge 连接）的 print/traceback 环形缓冲，供机器切换查看。 */
+    this._machineLines = new Map();
+    this._machineSeq = new Map();
     this._readyInfo = null;
     this._readyCount = 0;
     this._gameExe = '';
@@ -599,14 +602,29 @@ export class NativeProvider {
     this._channel = new GameChannel({ host: '127.0.0.1', token: this._channelToken });
     this._channel.on('error', (error) => this._logFollower && this._logFollower.note(`bridge TCP 错误：${errorMessage(error)}`));
     this._channel.on('hello', (info) => {
-      if (this._logFollower) this._logFollower.note(`游戏内 bridge 已连接：side=${info.side} version=${info.version || '?'}`);
+      const machine = info.machine || {};
+      if (this._logFollower) {
+        this._logFollower.note(
+          `游戏内 bridge 已连接：side=${info.side} pid=${machine.pid || '?'} version=${info.version || '?'}`,
+        );
+      }
     });
     this._channel.on('disconnect', (info) => {
-      if (this._logFollower) this._logFollower.note(`游戏内 bridge 断开：side=${info.side}`);
+      if (this._logFollower) this._logFollower.note(`游戏内 bridge 断开：side=${info.side} pid=${(info.machine && info.machine.pid) || '?'}`);
     });
-    // 游戏内 print / traceback 经 socket 上报，合并进同一日志缓冲（否则 GUI 进程的 stdout 看不到）
+    // 游戏内 print / traceback 经 socket 上报，合并进同一日志缓冲（否则 GUI 进程的 stdout 看不到）；
+    // 同时按机器（连接 id）分别缓存，供"切换机器看日志"使用。
     this._channel.on('log', (info) => {
       if (this._logFollower) this._logFollower.appendLine(info.text, info.stream);
+      if (typeof info.id === 'string' && info.id !== '') {
+        const seq = this._machineSeq.get(info.id) || 0;
+        this._machineSeq.set(info.id, seq + 1);
+        const buffer = this._machineLines.get(info.id) || [];
+        buffer.push({ seq, text: info.text, stream: info.stream, side: info.side, pid: info.pid });
+        const max = Math.max(200, Number(this.logLimit) || 800);
+        if (buffer.length > max) buffer.splice(0, buffer.length - max);
+        this._machineLines.set(info.id, buffer);
+      }
     });
 
     let child = null;
@@ -743,8 +761,10 @@ export class NativeProvider {
   // 日志
   // ---------------------------------------------------------------------------
 
-  /** 官方日志（Debug_Log*.txt 跟随，游标语义见 LogBuffer）。 */
+  /** 官方日志（Debug_Log*.txt 跟随，游标语义见 LogBuffer）；machine 指定时返回该实例的 print 缓冲。 */
   logs(args = {}) {
+    const machine = args && typeof args.machine === 'string' ? args.machine : '';
+    if (machine !== '') return this.machineLogs(machine, args || {});
     if (this._logFollower) {
       if (this._logFollower.running) this._logFollower.pollNow();
       return this._logFollower.query(args || {});
@@ -783,13 +803,15 @@ export class NativeProvider {
     const normalizedSide = normalizeSide(side);
     this._assertReady('执行代码');
     const timeoutMs = options.timeoutMs === undefined ? 60000 : Number(options.timeoutMs);
-    const result = await this._channel.exec(normalizedSide, code, { timeoutMs });
+    const machine = typeof options.machine === 'string' ? options.machine : '';
+    const result = await this._channel.exec(normalizedSide, code, { timeoutMs, machine });
     if (!result.ok) {
-      return { ok: false, side: normalizedSide, error: result.error || '执行失败（游戏内 bridge 未返回错误详情）' };
+      return { ok: false, side: normalizedSide, machine: machine || undefined, error: result.error || '执行失败（游戏内 bridge 未返回错误详情）' };
     }
     return {
       ok: true,
       side: normalizedSide,
+      machine: machine || undefined,
       returnValue: result.returnValue,
       returnType: result.returnType,
       returnRepr: result.returnRepr,
@@ -826,7 +848,10 @@ export class NativeProvider {
       '    _result = {"refreshed": False, "error": traceback.format_exc()}',
     ].join('\n');
     try {
-      const result = await this.exec(code, 'client', { timeoutMs: options.timeoutMs === undefined ? 30000 : Number(options.timeoutMs) });
+      const result = await this.exec(code, 'client', {
+        timeoutMs: options.timeoutMs === undefined ? 30000 : Number(options.timeoutMs),
+        machine: typeof options.machine === 'string' ? options.machine : '',
+      });
       const detail = result.returnValue || {};
       return { ok: Boolean(result.ok && detail.refreshed), kind: normalized, detail, error: detail.error || result.error };
     } catch (error) {
@@ -1005,6 +1030,71 @@ export class NativeProvider {
       }
       this._channel = null;
     }
+    this._machineLines.clear();
+    this._machineSeq.clear();
+  }
+
+  /**
+   * 当前连接的游戏实例列表（机器切换用）。
+   * 同一侧（client/server）可以有多个实例；用 bridge 上报的 pid 关联本机进程命令行，
+   * 解析 exe / 版本 / 世界目录，方便用户区分是哪一台。
+   * @returns {Promise<Array<{id:string, side:string, pid:number, connectedAt:number, exe:string, gameVersion:string, world:string, inWorld:boolean, levelId:string, launchedHere:boolean}>>}
+   */
+  async machines() {
+    const clients = this._channel ? this._channel.clients() : [];
+    if (clients.length === 0) return [];
+    let processes = [];
+    try {
+      processes = await listGameProcesses();
+    } catch {
+      processes = [];
+    }
+    const byPid = new Map(processes.map((item) => [item.pid, item]));
+    const machines = [];
+    for (const client of clients) {
+      const processInfo = byPid.get(client.pid);
+      const commandLine = processInfo ? processInfo.commandLine : '';
+      const exeMatch = /"([^"]*Minecraft\.Windows\.exe)"/i.exec(commandLine) || [null, ''];
+      const exe = exeMatch[1] ? exeMatch[1].replace(/\\\\/g, '\\') : '';
+      const versionMatch = /([\\/])(\d+\.\d+\.\d+\.\d+)[\\/]Minecraft\.Windows\.exe/i.exec(exe);
+      const gameVersion = versionMatch ? versionMatch[2] : '';
+      const configMatch = /config="?([^"\s]+\.cppconfig)"?/i.exec(commandLine);
+      const world = configMatch ? path.basename(path.dirname(configMatch[1].replace(/\\\\/g, '\\'))) : '';
+      let inWorld = false;
+      let levelId = client.levelId || '';
+      try {
+        const info = await this._channel.ping(client.side, 1500, client.id);
+        inWorld = Boolean(info && info.inWorld);
+        if (info && typeof info.levelId === 'string' && info.levelId !== '') levelId = info.levelId;
+      } catch {
+        inWorld = false;
+      }
+      machines.push({
+        id: client.id,
+        side: client.side,
+        pid: client.pid,
+        connectedAt: client.since,
+        exe,
+        gameVersion,
+        world,
+        inWorld,
+        levelId,
+        launchedHere: client.pid > 0 && client.pid === this._gamePid,
+        version: client.version,
+      });
+    }
+    return machines;
+  }
+
+  /** 某个游戏实例的 print/traceback 日志（Host 侧按机器过滤）。 */
+  machineLogs(machineId, args = {}) {
+    const buffer = this._machineLines.get(machineId);
+    const limit = Number.isInteger(args.limit) ? Math.max(1, Math.min(args.limit, 500)) : 120;
+    if (!buffer || buffer.length === 0) return { lines: [], next: 0, machine: machineId };
+    const lines = args.errors === true
+      ? buffer.filter((line) => /error|exception|traceback|failed|fatal|错误|异常|失败/i.test(line.text)).slice(-limit)
+      : buffer.slice(-limit);
+    return { lines, next: buffer[buffer.length - 1].seq + 1, machine: machineId };
   }
 
   /** 游戏进程退出后的状态收尾。 */

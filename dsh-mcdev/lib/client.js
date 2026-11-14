@@ -556,6 +556,12 @@ body[data-ds-dark-theme] .mcd-root{
 .mcd-search-bar{display:flex;align-items:center;gap:4px;flex:0 0 auto;width:100%;align-self:stretch;height:56px;padding:0 8px 0 16px;border-radius:28px;background:var(--mcd-surface-container-high);transition:background-color var(--mcd-dur-short4) var(--mcd-ease-standard),box-shadow var(--mcd-dur-short4) var(--mcd-ease-standard)}
 .mcd-search-bar > svg{flex:none;width:24px;height:24px;fill:var(--mcd-on-surface-variant)}
 .mcd-search-bar:focus-within{background:var(--mcd-surface-container-highest);box-shadow:var(--mcd-elev-1)}
+/* M3 selector for switching between connected game instances */
+.mcd-machine-select{display:inline-flex;align-items:center;gap:6px;flex:none;max-width:100%;height:40px;padding:0 12px;border:1px solid var(--mcd-outline);border-radius:20px;background:transparent;color:var(--mcd-on-surface);font-family:inherit;font-size:14px;line-height:20px;cursor:pointer;transition:background-color var(--mcd-dur-short4) var(--mcd-ease-standard)}
+.mcd-machine-select:hover{background-color:color-mix(in srgb,var(--mcd-on-surface) 8%,transparent)}
+.mcd-machine-select svg{flex:none;width:18px;height:18px;fill:currentColor}
+.mcd-machine-select svg:first-child{fill:var(--mcd-on-surface-variant)}
+.mcd-machine-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mcd-search-input{flex:1 1 auto;min-width:0;border:0;border-radius:0;background:transparent;padding:0 4px;color:var(--mcd-on-surface);font-family:inherit;font-size:16px;line-height:24px;letter-spacing:.5px;outline:none;appearance:none;-webkit-appearance:none}
 .mcd-search-input::placeholder{color:var(--mcd-on-surface-variant);opacity:1}
 .mcd-search-input:focus,.mcd-search-input:focus-visible{outline:none;box-shadow:none}
@@ -702,6 +708,11 @@ body[data-ds-dark-theme] .mcd-root{
       noNewer: 'Already at the newest logs.',
       logLauncher: 'Launcher',
       logGame: 'Game',
+      machine: 'Game instance',
+      machineAuto: 'Auto (latest)',
+      machineClient: 'client',
+      machineServer: 'server',
+      machineLocal: 'this plugin',
       onlyErrors: 'Errors only',
       gameLogsEmpty: 'No game log lines yet.',
       gameLogs: 'Game logs',
@@ -840,6 +851,11 @@ body[data-ds-dark-theme] .mcd-root{
       noNewer: '已是最新日志。',
       logLauncher: '启动器',
       logGame: '游戏',
+      machine: '游戏实例',
+      machineAuto: '自动（最近连接）',
+      machineClient: '客户端',
+      machineServer: '服务端',
+      machineLocal: '本插件启动',
       onlyErrors: '只看错误',
       gameLogsEmpty: '暂无游戏日志。',
       gameLogs: '游戏日志',
@@ -1228,6 +1244,8 @@ body[data-ds-dark-theme] .mcd-root{
       return {
         status: undefined,
         statusError: undefined,
+        machines: [],
+        machineId: '',
         logs: {
           launcher: { lines: [], next: undefined, loaded: false, error: undefined },
           game: { lines: [], error: undefined, loaded: false, errorsOnly: false },
@@ -1366,6 +1384,7 @@ body[data-ds-dark-theme] .mcd-root{
       extension: 'M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5a2.5 2.5 0 0 0-5 0V5H4a2 2 0 0 0-2 2v3.8h1.5a2.7 2.7 0 0 1 0 5.4H2V20a2 2 0 0 0 2 2h3.8v-1.5a2.7 2.7 0 0 1 5.4 0V22H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z',
       palette: 'M12 22a10 10 0 1 1 10-10c0 2.2-1.8 4-4 4h-1.5a2 2 0 0 0-1.4 3.4c.3.3.4.7.4 1.1 0 1.4-1.1 2.5-2.5 2.5zM6.5 11a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm3-4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z',
       check: 'M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z',
+      computer: 'M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-6l1 2h2v2H7v-2h2l1-2H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Zm1 2v8h14V7H5Z',
       copy: 'M16 1H4a2 2 0 0 0-2 2v14h2V3h12zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11z',
       search:
         'M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5Zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14Z',
@@ -1566,6 +1585,7 @@ body[data-ds-dark-theme] .mcd-root{
           const status = statusOf(result.data);
           if (status !== undefined) {
             commit(sid, (current) => ({ ...current, status, statusError: undefined }));
+            void loadMachines(sid);
             return true;
           }
           const message = result.kind === 'error' ? messageOf(result, translate(t, 'loadFailed')) : translate(t, 'loadFailed');
@@ -1578,6 +1598,43 @@ body[data-ds-dark-theme] .mcd-root{
         } finally {
           loads.delete(key);
         }
+      };
+
+      /** Read the connected game instances (machines) for the logs/exec selectors. */
+      const loadMachines = async (sid) => {
+        if (sid === undefined || sid === null || !remoteReady(remoteRef.current)) return;
+        const key = sid + '|machines';
+        if (loads.has(key)) {
+          await loads.get(key);
+          return;
+        }
+        const task = (async () => {
+          const result = await runCommand(sid, '/mcdev games --json');
+          const data = result.data;
+          if (result.kind === 'error' || data === undefined || data.ok === false) return;
+          const machines = Array.isArray(data.machines) ? data.machines : [];
+          commit(sid, (current) => {
+            const stillExists = machines.some((machine) => machine.id === current.machineId);
+            return { ...current, machines, machineId: stillExists ? current.machineId : '' };
+          });
+        })().catch(() => {});
+        loads.set(key, task);
+        try {
+          await task;
+        } finally {
+          loads.delete(key);
+        }
+      };
+
+      /** Pick which game instance logs/exec target; '' = the provider's default (latest). */
+      const selectMachine = (machineId) => {
+        const sid = sessionId;
+        if (sid === undefined || sid === null) return;
+        commit(sid, (current) => ({
+          ...current,
+          machineId: typeof machineId === 'string' ? machineId : '',
+          logs: { ...current.logs, game: { ...current.logs.game, lines: [], loaded: false, error: undefined } },
+        }));
       };
 
       /** First mount: adopt the cached snapshot, or read the status once for this session. */
@@ -1984,7 +2041,9 @@ body[data-ds-dark-theme] .mcd-root{
         setNote(undefined);
         setAction('reload');
         try {
-          const result = await runCommand(sid, '/mcdev reload --json');
+          const machine = viewOf(sid).machineId;
+          const machineSuffix = typeof machine === 'string' && machine !== '' ? ' --machine-b64=' + encodeArg(machine) : '';
+          const result = await runCommand(sid, '/mcdev reload' + machineSuffix + ' --json');
           const data = result.data;
           if (result.kind === 'error') {
             setError(messageOf(result, translate(t, 'commandFailed')));
@@ -2428,7 +2487,11 @@ body[data-ds-dark-theme] .mcd-root{
             const logs = viewOf(sid).logs;
             if (kind === 'game') {
               const errorsOnly = logs.game.errorsOnly === true;
-              const command = '/mcdev game-logs --limit ' + LOG_LIMIT + (errorsOnly ? ' --errors' : '') + ' --json';
+              const machine = viewOf(sid).machineId;
+              const machineSuffix = typeof machine === 'string' && machine !== ''
+                ? ' --machine-b64=' + encodeArg(machine)
+                : '';
+              const command = '/mcdev game-logs --limit ' + LOG_LIMIT + (errorsOnly ? ' --errors' : '') + machineSuffix + ' --json';
               const result = await runCommand(sid, command);
               const data = result.data;
               if (data !== undefined && data.ok === false) {
@@ -2507,19 +2570,71 @@ body[data-ds-dark-theme] .mcd-root{
         // eslint-disable-next-line react-hooks/exhaustive-deps
       }, [expanded, sessionId]);
 
-      // Opening the log tab (or switching its source) is the user action that reads a window.
+      const machineChoices = [{ value: '', label: translate(t, 'machineAuto') }].concat(
+        (Array.isArray(view.machines) ? view.machines : []).map((machine, index) => {
+          const sideLabel = machine.side === 'server' ? translate(t, 'machineServer') : translate(t, 'machineClient');
+          const bits = [
+            '#' + (index + 1),
+            sideLabel,
+            typeof machine.world === 'string' ? machine.world : '',
+            typeof machine.gameVersion === 'string' && machine.gameVersion !== '' ? 'v' + machine.gameVersion : '',
+            machine.launchedHere === true ? translate(t, 'machineLocal') : '',
+          ].filter((item) => item !== '');
+          return { value: machine.id, label: bits.join(' · ') };
+        }),
+      );
+
+      /** M3 selector for choosing which connected game instance logs/exec target. */
+      const machineSelector = (key) => {
+        if (machineChoices.length <= 1) return null;
+        const selected = machineChoices.find((choice) => choice.value === view.machineId) || machineChoices[0];
+        return h(
+          'button',
+          {
+            type: 'button',
+            className: 'mcd-machine-select',
+            key: 'machine-' + key,
+            'aria-haspopup': 'listbox',
+            'aria-label': translate(t, 'machine'),
+            title: translate(t, 'machine'),
+            onClick: (event) =>
+              openSelect(event, {
+                id: 'machine-' + key,
+                label: translate(t, 'machine'),
+                value: view.machineId,
+                choices: machineChoices,
+                onChange: selectMachine,
+              }),
+          },
+          h(Icon, { name: 'computer' }),
+          h('span', { className: 'mcd-machine-text' }, selected.label),
+          h(Icon, { name: 'chevron' }),
+        );
+      };
+
+      // Opening the log tab (or switching its source/machine) reads a window.
       React.useEffect(() => {
         if (!expanded || tab !== 'logs') return undefined;
         const sid = sessionId;
         if (sid === undefined || sid === null) return undefined;
+        void loadMachines(sid);
         const logs = viewOf(sid).logs;
         if (logSource === 'game') {
-          if (!logs.game.loaded) void loadLogs('game', 'initial');
+          void loadLogs('game', 'initial');
         } else if (!logs.launcher.loaded) {
           void loadLogs('launcher', 'initial');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-      }, [expanded, tab, logSource, sessionId]);
+      }, [expanded, tab, logSource, view.machineId, sessionId]);
+
+      // The exec tab also offers the machine selector: refresh the list when opened.
+      React.useEffect(() => {
+        if (!expanded || tab !== 'exec') return undefined;
+        if (sessionId === undefined || sessionId === null) return undefined;
+        void loadMachines(sessionId);
+        return undefined;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [expanded, tab, sessionId]);
 
       /** Run one Python snippet through `/mcdev exec --json`. */
       const runCode = async () => {
@@ -2530,7 +2645,9 @@ body[data-ds-dark-theme] .mcd-root{
         setExecBusy(true);
         commit(sid, (current) => ({ ...current, exec: { ...current.exec, ran: false, error: undefined } }));
         try {
-          const result = await runCommand(sid, '/mcdev exec --side ' + side + ' --code-b64=' + encodeArg(exec.code) + ' --json');
+          const machine = viewOf(sid).machineId;
+          const machineSuffix = typeof machine === 'string' && machine !== '' ? ' --machine-b64=' + encodeArg(machine) : '';
+          const result = await runCommand(sid, '/mcdev exec --side ' + side + ' --code-b64=' + encodeArg(exec.code) + machineSuffix + ' --json');
           const data = result.data;
           let text = '';
           if (data !== undefined) {
@@ -3321,6 +3438,7 @@ body[data-ds-dark-theme] .mcd-root{
                 onClick: () => setLogSource('game'),
               }),
             ),
+            showGame ? machineSelector('logs') : null,
             showGame
               ? h(IconButton, {
                   key: 'refresh',
@@ -3397,6 +3515,7 @@ body[data-ds-dark-theme] .mcd-root{
           h(
             'div',
             { className: 'mcd-row' },
+            machineSelector('exec'),
             h('span', { className: 'mcd-meta' }, translate(t, 'side')),
             h(
               'div',

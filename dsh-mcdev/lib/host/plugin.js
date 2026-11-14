@@ -27,7 +27,7 @@ const SECTION_NAME = 'dsh-mcdev/minecraft'
 const SKILL_NAME = 'minecraft-mod-dev'
 const SERVICE_KEY = 'mcdev'
 /** Code version surfaced by `action: "help"`; bump with `package.json`. */
-const CODE_VERSION = '0.8.6'
+const CODE_VERSION = '0.9.0'
 
 /** Actions shared by the command and the agent tool. */
 const ACTIONS = [
@@ -35,6 +35,7 @@ const ACTIONS = [
   'discover',
   'start',
   'stop',
+  'games',
   'logs',
   'game_logs',
   'exec',
@@ -61,9 +62,10 @@ const ACTION_HELP = [
   'status — 当前状态（进程 / 是否进入存档 / MCP 连接 / 工程目录）',
   'start [reset] [join] [waitMs] [world|behaviorPacks|resourcePacks|skin|slim] — 启动开发客户端（native 约 17–20s 进存档）；默认等待最多 180s',
   'stop — 结束本插件启动的游戏（不会结束用户自己启动的进程）',
-  'logs [since N] [limit N] [errors] [grep TEXT] — 增量读取日志（官方 Debug_Log + 游戏内 print 回传）',
-  'game_logs [errors] [limit N] — 读取游戏内 Python / 引擎日志（官方日志 + print 回传）',
-  'exec {code, side} — 在游戏客户端/服务端执行 Python（ModSDK 环境）',
+  'games — 列出当前连接的多个游戏实例（机器），日志/执行指令时用 --machine 切换',
+  'logs [since N] [limit N] [errors] [grep TEXT] [--machine ID] — 增量读取日志（官方 Debug_Log + 游戏内 print 回传）',
+  'game_logs [errors] [limit N] [--machine ID] — 读取游戏内 Python / 引擎日志（官方日志 + print 回传）',
+  'exec {code, side, machine?} — 在指定的游戏客户端/服务端实例执行 Python（ModSDK 环境）',
   'reload [scripts|game|addons] — 热重载（addons 可用；scripts/game 需重启游戏）',
   'screenshot — 截取游戏窗口，返回图片文件路径',
   'jsonui {command} — 运行 JSON UI 调试子命令（/help 查看）',
@@ -87,6 +89,7 @@ const SYSTEM_PROMPT = [
   'Minecraft (网易我的世界) 开发：任务涉及 Mod/Addon、ModSDK、行为包/资源包、JSON UI 或真实游戏验证时，使用 `mcdev` 工具。',
   '写 ModSDK 代码前先用 `docs_search` 查官方资料（离线语料含 ModAPI/网易教程/QuMod/SAPI），不要凭记忆猜接口；改完代码用 `reload` + `logs` 验证，日志和错误优先于截图。',
   '需要换世界/附加包/皮肤或游戏路径时：用 `presets` 读取、`preset-save` 保存启动预设（含 gameExe、host 的世界/包/皮肤、guest 皮肤；文件在 <project>/.mcdev/launch-presets.json，不改 .mcdev.json），`preset-active` 选当前预设；之后 `start` 自动沿用。',
+  '同时连接了多个游戏实例时：`games` 查看机器列表，`exec`/`logs`/`game_logs`/`reload` 用 `machine`（连接 id）指定实例。',
   '`start` 可能要 1–3 分钟，`stop` 会结束游戏进程，执行前确认用户意图。',
 ].join('\n')
 
@@ -276,6 +279,7 @@ export function jsonPayloadOf(action, payload) {
       return {
         ok: payload.ok !== false,
         source: 'game',
+        machine: payload.machine,
         lines: Array.isArray(payload.lines) ? payload.lines : [],
         tool: payload.tool,
         error: payload.error,
@@ -418,12 +422,20 @@ class McDevService {
    */
   async readGameLogs(bridge, options = {}) {
     const limit = Number.isInteger(options.limit) ? Math.max(1, Math.min(options.limit, 500)) : 120
+    const machine = typeof options.machine === 'string' ? options.machine : ''
     try {
-      const logs = await bridge.logs({ limit, errors: options.errors === true })
+      const logs = await bridge.logs({ limit, errors: options.errors === true, machine: machine !== '' ? machine : undefined })
       const lines = (Array.isArray(logs?.lines) ? logs.lines : []).slice(-limit)
-      return { ok: true, source: 'game', tool: 'official-debug-log', lines, next: logs?.next ?? lines.length }
+      return {
+        ok: true,
+        source: 'game',
+        tool: machine !== '' ? 'bridge-machine-log' : 'official-debug-log',
+        machine: machine !== '' ? machine : undefined,
+        lines,
+        next: logs?.next ?? lines.length,
+      }
     } catch (error) {
-      return { ok: false, source: 'game', lines: [], error: error instanceof Error ? error.message : String(error) }
+      return { ok: false, source: 'game', machine: machine !== '' ? machine : undefined, lines: [], error: error instanceof Error ? error.message : String(error) }
     }
   }
 
@@ -470,6 +482,10 @@ class McDevService {
 
       const bridge = await this.ensureBridge(projectDir)
 
+      if (action === 'games') {
+        const machines = typeof bridge.machines === 'function' ? await bridge.machines() : []
+        return { ok: true, machines: Array.isArray(machines) ? machines : [] }
+      }
       if (action === 'worlds') {
         return { ok: true, ...(await bridge.listWorlds(projectDir)) }
       }
@@ -566,11 +582,13 @@ class McDevService {
         return { ok: true, status: { ...status, provider: this.providerName } }
       }
       if (action === 'logs') {
+        const machine = typeof args.machine === 'string' ? args.machine.trim() : ''
         const logs = await bridge.logs({
           since: intOf(args.since, undefined),
           limit: intOf(args.limit, 120),
           errors: flagOf(args.errors),
           grep: typeof args.grep === 'string' ? args.grep : '',
+          machine: machine !== '' ? machine : undefined,
         })
         return { ok: true, source: this.providerName === 'native' ? 'official' : 'launcher', logs }
       }
@@ -579,25 +597,28 @@ class McDevService {
           errors: flagOf(args.errors),
           limit: intOf(args.limit, 120),
           timeoutMs,
+          machine: typeof args.machine === 'string' ? args.machine.trim() : '',
         })
       }
       if (action === 'exec') {
         const code = typeof args.code === 'string' ? args.code : ''
         if (code.trim() === '') return { ok: false, error: '缺少 code：请在客户端/服务端执行一段 Python' }
         const side = args.side === 'server' ? 'server' : 'client'
-        const before = await bridge.logs({ limit: 1 })
-        const result = await bridge.exec(code, side, { timeoutMs })
-        const after = await bridge.logs({ since: before.next, limit: 80 })
-        const game = await this.readGameLogs(bridge, { limit: 40, timeoutMs, quiet: true })
-        return { ...result, side, logs: after, gameLogs: game.ok ? game : undefined }
+        const machine = typeof args.machine === 'string' ? args.machine.trim() : ''
+        const before = await bridge.logs({ limit: 1, machine: machine !== '' ? machine : undefined })
+        const result = await bridge.exec(code, side, { timeoutMs, machine })
+        const after = await bridge.logs({ since: before.next, limit: 80, machine: machine !== '' ? machine : undefined })
+        const game = await this.readGameLogs(bridge, { limit: 40, timeoutMs, quiet: true, machine })
+        return { ...result, side, machine: machine !== '' ? machine : undefined, logs: after, gameLogs: game.ok ? game : undefined }
       }
       if (action === 'reload') {
         const kind = ['scripts', 'game', 'addons'].includes(args.kind) ? args.kind : 'scripts'
-        const before = await bridge.logs({ limit: 1 })
-        const result = await bridge.reload(kind, { timeoutMs })
-        const after = await bridge.logs({ since: before.next, limit: 120 })
-        const game = await this.readGameLogs(bridge, { limit: 60, timeoutMs, quiet: true })
-        return { ...result, kind, logs: after, gameLogs: game.ok ? game : undefined }
+        const machine = typeof args.machine === 'string' ? args.machine.trim() : ''
+        const before = await bridge.logs({ limit: 1, machine: machine !== '' ? machine : undefined })
+        const result = await bridge.reload(kind, { timeoutMs, machine })
+        const after = await bridge.logs({ since: before.next, limit: 120, machine: machine !== '' ? machine : undefined })
+        const game = await this.readGameLogs(bridge, { limit: 60, timeoutMs, quiet: true, machine })
+        return { ...result, kind, machine: machine !== '' ? machine : undefined, logs: after, gameLogs: game.ok ? game : undefined }
       }
       if (action === 'screenshot') {
         return await bridge.screenshot({ timeoutMs })
@@ -673,13 +694,32 @@ function renderPayload(action, payload) {
         return `游戏日志不可用: ${payload.error ?? 'MCP 未连接'}`
       }
       const lines = Array.isArray(payload.lines) ? payload.lines : []
-      if (lines.length === 0) return '游戏日志为空（可能尚未进入存档，或 log_protocol 不是 1）'
-      return `${lines.length} 行（游戏日志${payload.tool !== undefined ? ' · ' + payload.tool : ''}）\n${lines
+      const machineNote = payload.machine !== undefined ? ` · 机器 ${payload.machine}` : ''
+      if (lines.length === 0) return `游戏日志为空（可能尚未进入存档，或 log_protocol 不是 1）${machineNote}`
+      return `${lines.length} 行（游戏日志${payload.tool !== undefined ? ' · ' + payload.tool : ''}${machineNote}）\n${lines
         .map((line) => clip(line.text ?? '', 600))
         .join('\n')}`
     }
+    case 'games': {
+      const machines = Array.isArray(payload.machines) ? payload.machines : []
+      if (machines.length === 0) return '当前没有已连接的游戏实例（先 start 进入存档，或确认 dsh_bridge 行为包已加载）'
+      const lines = machines.map((machine, index) => {
+        const bits = [
+          `${index + 1}. ${machine.id}`,
+          String(machine.side || '?'),
+          machine.pid ? `pid=${machine.pid}` : '',
+          machine.gameVersion ? `v${machine.gameVersion}` : '',
+          machine.world ? `世界=${machine.world}` : '',
+          machine.inWorld ? '已进入存档' : '未进入存档',
+          machine.launchedHere ? '本插件启动' : '',
+        ].filter((item) => item !== '')
+        return bits.join('  ')
+      })
+      return `已连接 ${machines.length} 个游戏实例（exec/logs/game_logs/reload 用 --machine 指定）:\n${lines.join('\n')}`
+    }
     case 'exec': {
-      const lines = [payload.ok === true ? `执行成功（${payload.side ?? ''}）` : `执行失败${payload.error ? ': ' + payload.error : ''}`]
+      const machineNote = payload.machine !== undefined ? ` · 机器 ${payload.machine}` : ''
+      const lines = [payload.ok === true ? `执行成功（${payload.side ?? ''}${machineNote}）` : `执行失败${payload.error ? ': ' + payload.error : ''}`]
       if (payload.returnValue !== undefined) lines.push('返回值: ' + clip(asJsonText(payload.returnValue), 2000))
       if (payload.error !== undefined) lines.push('错误: ' + clip(String(payload.error), 2000))
       if (payload.logs !== undefined) lines.push('--- 之后的启动器日志 ---', formatLogs(payload.logs, 120))
@@ -866,10 +906,14 @@ export function applyMcdev(ctx, config) {
               enum: ['client', 'server'],
               description: 'exec: which ModSDK side executes the Python. Default client.',
             },
+            machine: {
+              type: 'string',
+              description: 'exec/logs/game_logs/reload: game instance id from the `games` action (switch machine when several games are connected).',
+            },
             kind: {
               type: 'string',
-              enum: ['scripts', 'game', 'addons'],
-              description: 'reload: scripts (Python modules) or game/addons (resources). Default scripts.',
+              enum: ['scripts', 'game', 'addons', 'behavior', 'resource'],
+              description: 'reload: scripts/game/addons; pack-import: behavior/resource.',
             },
             code: { type: 'string', description: 'exec: Python source to run in the game.' },
             command: {
@@ -917,11 +961,6 @@ export function applyMcdev(ctx, config) {
             skin: { type: 'string', description: 'start: absolute path of a skin PNG (empty = default skin).' },
             slim: { type: 'boolean', description: 'start: use the slim (3-pixel) player model.' },
             skinsDir: { type: 'string', description: 'Deprecated: skins are imported through the settings page file picker.' },
-            kind: {
-              type: 'string',
-              enum: ['behavior', 'resource'],
-              description: 'pack-import: whether the selected folder is a behavior pack or a resource pack.',
-            },
             sourceDir: {
               type: 'string',
               description: 'pack-import/skin-import: absolute folder path chosen through the file picker.',
@@ -1007,6 +1046,8 @@ function optionsToArgs(parsed) {
   push('tool', typeof options.tool === 'string' ? options.tool : undefined)
   if (typeof options['code-b64'] === 'string') args.code = decodeBase64(options['code-b64'])
   else push('code', typeof options.code === 'string' ? options.code : undefined)
+  if (typeof options['machine-b64'] === 'string') args.machine = decodeBase64(options['machine-b64'])
+  else push('machine', typeof options.machine === 'string' ? options.machine : undefined)
   if (typeof options.steps === 'string') {
     try {
       args.steps = JSON.parse(options.steps)
@@ -1131,6 +1172,9 @@ function commandVerbToAction(verb, positionals, args) {
       return 'stop'
     case 'logs':
       return 'logs'
+    case 'games':
+    case 'machines':
+      return 'games'
     case 'worlds':
       return 'worlds'
     case 'packs':

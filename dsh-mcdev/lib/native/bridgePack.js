@@ -73,6 +73,7 @@ const MOD_MAIN_PY = String.raw`# -*- coding: utf-8 -*-
 # dsh_bridge —— dsh-mcdev native provider 的游戏内桥接模组。
 # 本文件由 dsh-mcdev Host 自动生成，手动修改会在下次启动时被覆盖。
 import json
+import os
 import socket
 import sys
 import threading
@@ -337,7 +338,8 @@ class _SideBridge(object):
                 sock.connect((HOST, PORT))
                 sock.settimeout(None)
                 self.sock = sock
-                self._send({"type": "hello", "side": self.side, "version": PROTOCOL_VERSION, "mod": MOD_NAME, "token": TOKEN})
+                self._send({"type": "hello", "side": self.side, "version": PROTOCOL_VERSION, "mod": MOD_NAME, "token": TOKEN,
+                            "pid": os.getpid(), "levelId": self.levelId or ""})
                 print("[dsh_bridge] " + self.side + " connected to host " + str(HOST) + ":" + str(PORT))
                 buf = b""
                 while not self.stopFlag:

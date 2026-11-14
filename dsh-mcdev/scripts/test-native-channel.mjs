@@ -116,16 +116,55 @@ try {
     client.socket.destroy()
   })
 
-  await test('reconnecting the same side replaces the old connection', async () => {
+  await test('a reconnect of the same game instance replaces its old connection', async () => {
     const first = await connect(port)
-    first.send({ type: 'hello', side: 'server', version: '1.0.0', token: 'token-123' })
+    first.send({ type: 'hello', side: 'server', version: '1.0.0', token: 'token-123', pid: 111 })
     await waitUntil(() => hellos.length === 2)
     const second = await connect(port)
-    second.send({ type: 'hello', side: 'server', version: '1.0.0', token: 'token-123' })
+    second.send({ type: 'hello', side: 'server', version: '1.0.0', token: 'token-123', pid: 111 })
     await waitUntil(() => hellos.length === 3)
-    assert.equal(channel.clients().filter((item) => item.side === 'server').length, 1, 'only the newest server side is kept')
+    assert.equal(
+      channel.clients().filter((item) => item.side === 'server' && item.pid === 111).length,
+      1,
+      'the same pid keeps only its newest connection',
+    )
     first.socket.destroy()
     second.socket.destroy()
+  })
+
+  await test('multiple game instances can connect at once and be routed by machine id', async () => {
+    const alpha = await connect(port)
+    alpha.send({ type: 'hello', side: 'client', version: '1.0.0', token: 'token-123', pid: 201 })
+    await waitUntil(() => hellos.length === 4)
+    const beta = await connect(port)
+    beta.send({ type: 'hello', side: 'client', version: '1.0.0', token: 'token-123', pid: 202 })
+    await waitUntil(() => hellos.length === 5)
+    const clients = channel.clients().filter((item) => item.side === 'client')
+    assert.equal(clients.length, 2, 'both client instances are listed')
+    assert.deepEqual(clients.map((item) => item.pid).sort(), [201, 202])
+
+    const alphaMachine = clients.find((item) => item.pid === 201)
+    const betaMachine = clients.find((item) => item.pid === 202)
+    assert.ok(alphaMachine && betaMachine && alphaMachine.id !== betaMachine.id)
+
+    // machine 路由：ping 231 只会写到 alpha 的 socket
+    const alphaRequest = alpha.next()
+    const ping = channel.ping('client', 1000, betaMachine.id)
+    const betaRequest = await beta.next()
+    assert.equal(betaRequest.type, 'ping', 'beta received the ping')
+    beta.send({ id: betaRequest.id, type: 'pong', data: { inWorld: true, pid: 202 } })
+    const response = await ping
+    assert.equal(response.pid, 202)
+    alpha.socket.destroy()
+    beta.socket.destroy()
+    alphaRequest.catch(() => {})
+  })
+
+  await test('an unknown machine id fails with a readable error', async () => {
+    await assert.rejects(
+      () => channel.ping('client', 300, 'c-does-not-exist'),
+      /已断开|重新选择/,
+    )
   })
 } finally {
   await channel.close()

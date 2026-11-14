@@ -1,4 +1,11 @@
-# dsh-mcdev — 实现契约（v0.8.6：行为包/资源包选择器重做 / 去掉空闲提示）
+# dsh-mcdev — 实现契约（v0.9.0：多游戏实例 / 日志与执行可切换机器）
+
+> **v0.9.0 变更（功能 + UI）**：同一台机器上同时连多个游戏实例时，日志与执行代码可以按实例切换。
+> - **channel**：每侧（client/server）可并存多个连接；hello 上报 `pid`/`levelId`；`clients()` 返回 `{id, side, pid, levelId, version, since, remotePort}`；同 `pid` 重连替换旧连接，不同实例并存；`ping`/`exec`/`reload` 支持按 `machine`（连接 id）路由；log 事件带连接 id/pid。
+> - **native provider**：新增 `machines()`（枚举连接实例，并结合 Win32 进程命令行解析 exe / 游戏版本 / 世界目录，ping 补 `inWorld`）；每个实例独立缓存 bridge print/traceback 环形日志；`exec`/`logs`/`reload` 支持 `machine` 参数。
+> - **Host**：新增 `games` 动作；`exec` / `logs` / `game_logs` / `reload` 增加 `machine` 参数（命令 `--machine-b64`）；tool schema、help、文本渲染更新（exec/game_logs 输出标注机器）。
+> - **Client**：日志页（游戏日志源）与执行代码页在 **连接实例数 > 1** 时显示 M3 机器选择器（`自动（最近连接）` + 每个实例：`#序号 · 客户端/服务端 · 世界 · 版本 · 本插件启动`，复用自绘 M3 dropdown）；切换后 `game-logs` / `exec` / `reload` 自动带 `--machine-b64`；当前选择保存在会话视图 `machineId`，日志缓存按机器失效。
+> - 测试：`test-native-channel` 7 项（多实例并存、按 machine 路由、同 pid 重连、未知 machine id 报错）；`test-integration` 增加 `/mcdev games` 形状断言。
 
 > **v0.8.6 变更（UI）**：
 > - **行为包/资源包选择器重做**：每项为 M3 list item（56dp）：leading 40dp 圆形图标（行为包 = puzzle `extension`、资源包 = `palette`，secondary-container 底/on-secondary-container 图标）、姓名 Body M 14/20、副标题 Body S 12/16（来源「工程/导入/全局」+ manifest 版本）、trailing M3 18dp checkbox；section 头为「标题 + 文字按钮『+ 导入包』」；去掉旧的紧凑 checkbox 行与占位徽标混排；
