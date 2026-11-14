@@ -1,4 +1,6 @@
-# dsh-mcdev — 实现契约（v0.7：启动预设）
+# dsh-mcdev — 实现契约（v0.7.1：渲染隔离）
+
+> **v0.7.1 变更（性能）**：面板根节点 `.mcd-root` 增加 `contain: content`（layout/style/paint 隔离），拖拽/缩放/日志刷新只影响面板子树；无 Host 接口变化，仅 Bump 版本。
 
 > **v0.7 变更（启动预设）**：把 v0.6 的单份 launch-profile 升级为**预设集合**：
 > - 插件自有文件 `<工程>/.mcdev/launch-presets.json`：`{version, activeId, presets:[{id,name,gameExe,host:{world,behaviorPacks,resourcePacks,skin,slim,skinsDir},guests:[{id,name,skin,slim}]}]}`，**不修改 `.mcdev.json`**；

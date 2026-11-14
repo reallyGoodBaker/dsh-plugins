@@ -80,6 +80,9 @@ window.__ModuleLoader__.load({
   border-radius:var(--mcd-radius-xl);background:var(--mcd-surface-container);color:var(--mcd-on-surface);
   font-family:var(--mcd-font);font-size:13px;line-height:1.45;text-align:start;pointer-events:auto;overflow:hidden;
   box-shadow:var(--mcd-shadow-3);user-select:none;
+  /* Layout/style/paint isolation: dragging, resizing and hot log updates only
+     invalidate this subtree instead of the whole Harness view. */
+  contain:content;
 }
 .mcd-root *{box-sizing:border-box}
 .mcd-root :focus-visible{outline:2px solid var(--mcd-focus);outline-offset:2px}

@@ -112,6 +112,7 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
 - **切换规则**：icon 点图标 → compact；compact 点图标 → icon；compact 点放大 → full；full 点缩小 → compact；full 点图标 → icon；
 - **启动/停止合并为一个按钮**（▶ / ■ / ✕），其余动作全部是带 tooltip 与 aria-label 的图标按钮；
 - 全部颜色/圆角/字体走 M3 token（Minecraft 绿主色、surface-container 系列、state layer、深浅主题 fallback、`prefers-reduced-motion`）；
+- 窗口根节点使用 CSS `contain: content`（layout/style/paint 隔离）：拖拽、缩放、日志高频刷新只重排/重绘面板子树，不波及整个 Harness 页面；
 - 键盘：图标 Enter/Space 进入 compact，`Esc` 逐级后退（full → compact → icon），方向键移动，tab 左右切换；几何信息记忆在 `localStorage`（v4），**每次页面加载都从 icon 模式开始**。
 
 ## 配置（bundle row config）
