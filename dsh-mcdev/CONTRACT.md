@@ -1,4 +1,22 @@
-# dsh-mcdev — 实现契约（v0.8.3：M3 细节收口 / 动效、类型尺度、工具提示）
+# dsh-mcdev — 实现契约（v0.8.4：按官方 M3 token 对齐组件）
+
+> **v0.8.4 变更（UI，binding）**：不再凭印象实现 M3，改为**以官方规范与官方 token 值为准**：
+> - 参考文档：<https://m3.material.io/>（组件 specs / color roles / typescale / shape / motion）；
+> - token 数值参考 Material Web 官方生成 token（`material-components/material-web`，v0.192）：
+>   `_md-sys-color.scss`、`_md-sys-typescale.scss`、`_md-sys-shape.scss`、`_md-sys-motion.scss`、`_md-sys-elevation.scss`、`_md-sys-state.scss` 及各 `_md-comp-*.scss`；
+> - **颜色角色**：采用完整 M3 角色集（primary/on-primary/primary-container…secondary-container、tertiary、surface 五级容器、outline、inverse-surface 等），容器色为不透明色调（不再用 color-mix 半透明近似），深浅两套主题；表面层级：面板 surface-container → 卡片 surface-container-high → 文本域 surface-container-highest；
+> - **Filled text field**（`_md-comp-filled-text-field`）：56dp 高、4/4/0/0 圆角、surface-container-highest 容器、1dp on-surface-variant 底部指示条（聚焦 2dp primary）、输入正文 Body L 16/24、浮动标签 Body S 12/16；
+> - **FAB**（`_md-comp-fab-primary`）：56dp、corner-large 16、primary-container/on-primary-container、elevation 3 → hover elevation 4；
+> - **Icon button**：图标 24dp、40dp 圆形 state layer、未选中 on-surface-variant / 选中 primary；
+> - **Button**：filled/tonal/outlined/text，40dp、corner-full、Label L 14/20、图标 18dp，hover 抬升到 elevation 1；
+> - **Menu**（`_md-comp-menu`）：container 为 surface-container、corner-extra-small 4、elevation 2、item 48dp；**选中项用 secondary-container/on-secondary-container**（修正此前误用 surface-container-highest/primary）；
+> - **Card**（`_md-comp-filled-card`）：surface-container-high、corner-medium 12、elevation 0 → hover 1；
+> - **Switch**（`_md-comp-switch`）：52×32 轨道、选中 handle 24dp on-primary、未选中 16dp outline、按下 handle 28dp primary-container、state layer 40dp；
+> - **Motion**（`_md-sys-motion`）：duration short4 200ms / medium2 300ms / long2 500ms，standard `cubic-bezier(.2,0,0,1)`、emphasized-decelerate `cubic-bezier(.05,.7,.1,1)`；state layer 200ms，菜单 300ms，ripple ~480ms；
+> - **Elevation**（`_md-sys-elevation`）：1/3/6/8/12dp 对应 5 级阴影；**State layer**（`_md-sys-state`）：hover 8% / focus 12% / pressed 12%；
+> - **Snackbar**：瞬态提示改用 inverse-surface/inverse-on-surface、4dp 圆角、elevation 3；
+> - **Shape**（`_md-sys-shape`）：4/8/12/16/28/full 全量落地；**Typescale**：Title L 22/28、Title M 16/24、Body L 16/24、Body M 14/20、Body S 12/16、Label L 14/20、Label M 12/16。
+> - 仅 Client 改动，Host 接口不变。
 
 > **v0.8.3 变更（UI，binding）**：在 v0.8.2 全组件 M3 基础上继续收口：
 > - **单一启动/停止动作改为 M3 FAB**（56dp、16dp 圆角、24dp 图标、elevation 1→3，悬停/按下 state layer + ripple）；
