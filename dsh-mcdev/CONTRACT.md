@@ -1,4 +1,9 @@
-# dsh-mcdev — 实现契约（v0.8.5：M3 search bar / 修正文档检索输入框）
+# dsh-mcdev — 实现契约（v0.8.6：行为包/资源包选择器重做 / 去掉空闲提示）
+
+> **v0.8.6 变更（UI）**：
+> - **行为包/资源包选择器重做**：每项为 M3 list item（56dp）：leading 40dp 圆形图标（行为包 = puzzle `extension`、资源包 = `palette`，secondary-container 底/on-secondary-container 图标）、姓名 Body M 14/20、副标题 Body S 12/16（来源「工程/导入/全局」+ manifest 版本）、trailing M3 18dp checkbox；section 头为「标题 + 文字按钮『+ 导入包』」；去掉旧的紧凑 checkbox 行与占位徽标混排；
+> - 移除主面板的「游戏未启动：点…」空闲提示行（`idleHint` 不再渲染），状态仍由标题下状态点和启动按钮表达；
+> - 仅 Client 改动，Host 接口不变。
 
 > **v0.8.5 变更（UI）**：修正文档检索搜索框，按 M3 **Docked search bar** 规范重做：
 > - 56dp 高、corner-full（28dp）胶囊容器、surface-container-high 背景；
