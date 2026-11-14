@@ -27,7 +27,7 @@ const SECTION_NAME = 'dsh-mcdev/minecraft'
 const SKILL_NAME = 'minecraft-mod-dev'
 const SERVICE_KEY = 'mcdev'
 /** Code version surfaced by `action: "help"`; bump with `package.json`. */
-const CODE_VERSION = '0.10.1'
+const CODE_VERSION = '0.10.2'
 
 /** Actions shared by the command and the agent tool. */
 const ACTIONS = [
