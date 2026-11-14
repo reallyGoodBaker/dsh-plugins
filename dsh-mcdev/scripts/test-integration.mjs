@@ -167,7 +167,7 @@ async function runCommand(rawInput) {
   console.log('ok 10 - jsonPayloadOf shapes for start/failure/game_logs/docs')
 }
 
-// 7. presets (plugin-owned, no .mcdev.json involved)
+// 7. presets (plugin-owned)
 {
   const result = await runCommand('--json presets')
   const payload = JSON.parse(result.text)
@@ -177,7 +177,7 @@ async function runCommand(rawInput) {
   assert.ok(Array.isArray(payload.worlds), 'worlds are returned')
   assert.ok(Array.isArray(payload.skins), 'skins are returned')
   assert.equal(typeof payload.path, 'string', 'presets file path is returned')
-  assert.ok(!('config' in payload), 'presets do not expose .mcdev.json')
+  assert.ok(!('config' in payload), 'presets do not expose a project config')
   console.log('ok 11 - /mcdev presets --json ->', payload.state.presets.length, 'presets,', payload.worlds.length, 'worlds')
 }
 
@@ -190,15 +190,15 @@ async function runCommand(rawInput) {
   console.log('ok 12 - /mcdev games --json ->', payload.machines.length, 'connected instances')
 }
 
-// 8. .mcdev.json compatibility removed: the old config action is gone
+// 8. the old project-config action is gone
 {
   const result = await runCommand('--json config')
   const payload = JSON.parse(result.text)
   assert.equal(payload.ok, true, 'an unknown verb falls back to help')
   assert.ok(Array.isArray(payload.actions), 'help lists the available actions')
   assert.ok(!payload.actions.includes('config'), 'config action removed from ACTIONS')
-  assert.ok(!('config' in payload), 'no .mcdev.json payload is returned')
-  console.log('ok 12 - .mcdev.json config action removed')
+  assert.ok(!('config' in payload), 'no project-config payload is returned')
+  console.log('ok 12 - project config action removed')
 }
 
 // 8. cleanup order: disposers run without throwing

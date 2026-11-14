@@ -1,6 +1,6 @@
 // 启动预设（presets）：一个预设 = 一套「游戏路径 + 1 个 host + 若干 guest」的多人测试方案。
 //
-// 存在 <project>/.mcdev/launch-presets.json，完全自包含（不读取 .mcdev.json）。
+// 存在 <project>/.mcdev/launch-presets.json，完全自包含。
 // - gameExe：该预设使用的 Minecraft.Windows.exe（不同机器安装位置可能不同）
 // - host：世界 / 行为包 / 资源包 / 皮肤 / 纤细模型
 // - guests：只配置皮肤 / 纤细模型（世界与包由 host 决定）
@@ -220,7 +220,7 @@ export function setActivePreset(state, id) {
 }
 
 /**
- * 从预设解析启动参数（完全来自预设，不再读取 .mcdev.json）。
+ * 从预设解析启动参数（完全来自预设）。
  * 未选世界时回退到默认开发世界名。
  */
 export function resolveHostLaunch(preset, defaultWorld = 'MC_DEV_WORLD') {

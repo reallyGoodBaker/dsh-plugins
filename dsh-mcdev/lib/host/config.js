@@ -13,7 +13,7 @@ export function defaultDocsDir() {
 }
 
 export const DEFAULT_CONFIG = {
-  /** Explicit project directory (holds `.mcdev.json`); empty means the session working directory. */
+  /** Explicit project directory; empty means the session working directory. */
   projectDir: '',
   /** Log ring-buffer size kept by the provider. */
   logLimit: 2000,

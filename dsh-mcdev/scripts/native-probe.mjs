@@ -61,7 +61,7 @@ function parseArgs(argv) {
         console.log(
           [
             '用法: node scripts/native-probe.mjs [选项]',
-            '  --project <dir>   工程目录（含 .mcdev.json，默认工作区根）',
+            '  --project <dir>   工程目录（默认工作区根）',
             '  --keep            成功后保留游戏运行（写 state.json，可 --stop 结束）',
             '  --stop            结束 --keep 留下的进程',
             '  --reset           启动前尝试重建开发世界（无模板时保留原世界）',
@@ -173,7 +173,7 @@ async function main() {
     log(`[probe] 游戏：${discovered.gameExe || '<未找到>'}（${discovered.gameVersion || '?'}）`);
     log(`[probe] 世界：${discovered.world && discovered.world.dir}（exists=${discovered.world && discovered.world.exists}）`);
     log(`[probe] 日志目录：${discovered.logsDir}`);
-    if (!discovered.gameExe) throw new Error('未找到 Minecraft.Windows.exe（检查 .mcdev.json 的 game_executable_path）');
+    if (!discovered.gameExe) throw new Error('未找到 Minecraft.Windows.exe（请检查游戏安装目录）');
 
     // 启动（waitMs=0 立即返回 launching）
     const spawnAt = Date.now();

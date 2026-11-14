@@ -1,4 +1,9 @@
-# dsh-mcdev — 实现契约（v0.10.0：访客自动多开 / 用户名可编辑）
+# dsh-mcdev — 实现契约（v0.10.1：删除旧配置支持与相关提示）
+
+> **v0.10.1 变更（清理）**：
+> - **彻底删除 `.mcdev.json` 支持代码**：移除 `lib/native/util.js` 里的 `CONFIG_DEFAULTS` / `configPathOf` / `mergeDeep` / `readJsonFile` / `readConfigWithDefaults` / `writeMergedConfig`，`launcher.js` 不再 re-export；全仓库（代码/测试/README/help/skill）不再出现 `.mcdev.json` 引用。
+> - **删除 UI 里与 mcdev/旧配置有关的提示**：访客长说明（红框）、预设列表/编辑页底部“这些设置只影响本插件的启动…”提示全部删除；`guestHint`/`presetHint`/`configHint`/`idleHint` 从中英文字典与 `locale/*.json` 移除（面板 key 数 138）；机器选择器里的“本插件启动”改为“主机/host”。
+> - 删除后行为不变：启动预设仍是唯一启动来源；测试 `test-native-util` 由 9 项变 7 项（去掉 2 个旧配置读写用例），其余套件全绿。
 
 > **v0.10.0 变更（功能 + UI）**：
 > - **主机用户名**：预设 `host.playerName`（默认 `developer`）写入 `dev_config.cppconfig.player_info.user_name`；实测写入生效；`presets`/`preset-save` schema 接受该字段，`resolveHostLaunch` 返回 `playerName`；`presets` 列表/编辑器新增「用户名」输入框。

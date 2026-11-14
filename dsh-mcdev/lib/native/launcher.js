@@ -11,11 +11,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 
-import { configPathOf, findGameVersions, readConfigWithDefaults } from './util.js';
+import { findGameVersions } from './util.js';
 import { isProcessAlive, killProcessTree, waitFor } from './util.js';
 import { minecraftRootDir, worldTemplateDirs, worldsDir, locksDir } from './bridgePack.js';
 
-export { configPathOf, readConfigWithDefaults, isProcessAlive, killProcessTree };
+export { isProcessAlive, killProcessTree };
 
 /** 默认开发世界名。 */
 export const DEFAULT_WORLD_NAME = 'MC_DEV_WORLD';
@@ -83,7 +83,7 @@ export function releaseWorldLock(worldDir, options = {}) {
   }
 }
 
-/** 由 .mcdev.json 解析开发世界目录。 */
+/** 由世界目录解析 dev_config.cppconfig 路径。 */
 export function worldDirOf(projectDir, config = {}) {
   const name = String(config.world_folder_name || config.world_name || DEFAULT_WORLD_NAME);
   return path.join(worldsDir(), name);

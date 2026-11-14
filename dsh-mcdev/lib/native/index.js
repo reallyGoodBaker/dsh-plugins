@@ -134,7 +134,7 @@ function errorMessage(error) {
 /**
  * 创建 native provider。
  * @param {object} [options]
- * @param {string} [options.projectDir] 项目目录（含 .mcdev.json）
+ * @param {string} [options.projectDir] 项目目录
  * @param {string} [options.pluginDir] 插件目录（仅用于诊断输出）
  * @param {number} [options.logLimit] 日志环形缓冲行数（默认 2000）
  * @param {number} [options.startTimeoutMs] 等待进入存档的默认超时（默认 180000）
@@ -485,7 +485,7 @@ export class NativeProvider {
     const waitMs = options.waitMs === undefined || options.waitMs === null ? 0 : Math.max(0, Number(options.waitMs) || 0);
     this._notes = [];
 
-    // 启动预设：完全自包含（游戏路径 + host 世界/包/皮肤 + guest 皮肤），不读取 .mcdev.json。
+    // 启动预设：完全自包含（游戏路径 + host 世界/包/皮肤 + guest 皮肤）。
     const presetState = this._ensurePresets(dir);
     const requestedPresetId = typeof options.presetId === 'string' ? options.presetId : '';
     const preset = findPreset(presetState, requestedPresetId) || findPreset(presetState, '');

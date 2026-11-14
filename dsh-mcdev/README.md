@@ -160,7 +160,7 @@ plugin_manager install_bundle target="<本仓库路径>/dsh-mcdev"
 | --- | --- | --- |
 | `scripts/test-host.mjs` | 6 | 命令解析、配置归一、base64 |
 | `scripts/test-integration.mjs` | 10 | 假 Cordis 上下文下的命令/工具注册、docs 检索、discover（provider=native）、`--json` 文档形状 |
-| `scripts/test-native-util.mjs` | 9 | 日志环形缓冲游标/ANSI/错误过滤、游戏版本发现、世界占用进程识别 |
+| `scripts/test-native-util.mjs` | 7 | 日志环形缓冲游标/ANSI/错误过滤、游戏版本发现、世界占用进程识别 |
 | `scripts/test-native-channel.mjs` | 5 | bridge TCP 握手：token 缺失/错误被拒、hello 前消息忽略、重连替换 |
 | `scripts/test-client-shapes.mjs` | 6 | 面板 payload 解包与错误文案（回归测试） |
 | `scripts/test-locale-parity.mjs` | 59 | `lib/client.js` 内联 en/zh 与 `locale/*.json` 逐键一致 |
