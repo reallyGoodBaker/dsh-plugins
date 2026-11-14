@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "工作区检查点",
+    "description": "提供 /checkpoint 命令与 checkpoint_inspect 工具：记录工作区状态、提交待提交的 git 修改，并维护对比基线。"
+  }
+}

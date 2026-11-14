@@ -1,0 +1,11 @@
+# dsh-mcdev bundle patch: one Host row (self-implemented launcher + official
+# log tail + in-game bridge pack + docs index) and one browser half (floating,
+# draggable Minecraft dev panel), both shipped in this package.
+- insert:
+    - id: dsh-mcdev
+      name: '@local/dsh-mcdev'
+      config:
+        projectDir: ''
+        logLimit: 2000
+        docsDir: ''
+        startTimeoutMs: 180000

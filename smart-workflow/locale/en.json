@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Smart workflow: directions + checkpoints",
+    "description": "One install for smart directions (value check + direction cards with per-option guidance) and workspace checkpoints (/checkpoint, checkpoint_inspect), plus checkpoint-anchored context compression through /checkpoint compress."
+  }
+}

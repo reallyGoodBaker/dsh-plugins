@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Minecraft dev companion">
+  <rect x="3" y="3" width="26" height="26" rx="6" fill="#2f7d4f"/>
+  <rect x="7" y="7" width="8" height="8" fill="#8fd18a"/>
+  <rect x="17" y="7" width="8" height="8" fill="#4fae62"/>
+  <rect x="7" y="17" width="8" height="8" fill="#4fae62"/>
+  <rect x="17" y="17" width="8" height="8" fill="#2f7d4f"/>
+  <path d="M10 22 L22 10" stroke="#f4f1e8" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M18 10 h4 v4" fill="none" stroke="#f4f1e8" stroke-width="2.4" stroke-linejoin="round"/>
+</svg>

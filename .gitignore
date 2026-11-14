@@ -1,0 +1,24 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+
+# dependencies / build output
+node_modules/
+dist/
+.cache/
+__pycache__/
+*.pyc
+.venv/
+
+# local scratch state
+.dsh-tmp/
+.mcdev/
+*.bak
+*.log
+
+# test/temp artifacts
+.mcdev/screenshots/
+*.tmp

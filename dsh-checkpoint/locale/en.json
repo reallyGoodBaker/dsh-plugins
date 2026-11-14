@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Workspace checkpoints",
+    "description": "The /checkpoint command and checkpoint_inspect tool: snapshot the workspace, commit pending git changes, and keep a comparison baseline."
+  }
+}

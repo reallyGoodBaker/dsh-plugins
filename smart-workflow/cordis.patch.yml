@@ -1,0 +1,18 @@
+# Smart workflow bundle patch: one Host row, one browser half.
+# It inserts the shipped experimental action-card service and its browser half (both resolve
+# from the dsh installation, so no dependency is declared), then our own plugin row.
+- insert:
+    - id: smart-workflow-action-cards
+      name: '@deepseek-ai/dsh-action-cards'
+      config:
+        queuedMessageLimit: 2
+    - id: smart-workflow-action-cards-client
+      name: '@deepseek-ai/dsh-client-ui-action-cards'
+    - id: smart-workflow
+      name: '@local/dsh-smart-workflow'
+      config:
+        protocol: true
+        autoContinue: true
+        autoCommit: true
+        commitMessage: 'checkpoint {id}: {note}'
+        keepBaselineByDefault: false

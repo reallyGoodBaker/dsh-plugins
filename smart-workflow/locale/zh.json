@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "智能方向 + 检查点",
+    "description": "一个插件同时提供：方向卡片与价值复核（每个选项自带补充指引）、工作区检查点（/checkpoint、checkpoint_inspect），并以检查点为锚点通过 /checkpoint compress 压缩上下文。"
+  }
+}

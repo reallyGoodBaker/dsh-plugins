@@ -1,0 +1,15 @@
+# Smart Direction bundle patch.
+# It inserts the shipped experimental action-card service and its browser half (both resolve
+# from the dsh installation, so no dependency is declared), then our own plugin row.
+- insert:
+    - id: smart-direction-action-cards
+      name: '@deepseek-ai/dsh-action-cards'
+      config:
+        queuedMessageLimit: 2
+    - id: smart-direction-action-cards-client
+      name: '@deepseek-ai/dsh-client-ui-action-cards'
+    - id: smart-direction
+      name: '@local/dsh-smart-direction'
+      config:
+        protocol: true
+        autoContinue: true

@@ -1,0 +1,2365 @@
+window.__ModuleLoader__.load({
+  id: '@local/dsh-mcdev',
+  factory(require) {
+    const React = require('react');
+    const h = React.createElement;
+
+    /**
+     * MCDEV console: a draggable floating window in the frame-wide `shell.overlay` slot.
+     *
+     * `shell.overlay` is a root-scope list slot (`id`/`order` registration options, no
+     * `sessionId` among its standard props) whose layer is click-through; this entry opts back
+     * into pointer events and positions itself with `position:fixed`. The session comes from the
+     * documented `useSessions` selector hook: ui-workspace's own `mainSessionId` rule selects the
+     * Session retained by the main view (`session.retainedBy.mainView > 0`).
+     *
+     * Game state is read through `props.remote.commands.execute(sessionId, '/mcdev ... --json', [])`;
+     * every command also appends a command-run event to the conversation, so snapshots are cached
+     * per session and no poller exists: the first mount reads `/mcdev status` once, every later
+     * read is a user action (expand, button, tab open, search) or an explicit Refresh.
+     */
+    const NS = 'mcdev';
+    const SLOT = 'shell.overlay';
+    const ENTRY_ID = 'dsh-mcdev';
+    /** Incremented on every client re-apply; a new value resets the panel to icon mode. */
+    let BOOT_SEQ = 0;
+    const ENTRY_ORDER = 20;
+    const LOG_LIMIT = 120;
+    const LOG_MAX = 200;
+    const DOC_LIMIT = 12;
+    const TEXT_LIMIT = 20000;
+    const START_TIMEOUT_SECONDS = 180;
+    /** Panel geometry: viewport inset, capsule height, and the allowed card size. */
+    const STORAGE_KEY = 'dsh.mcdev.panel.v4';
+    const EDGE_MARGIN = 8;
+    const DEFAULT_MARGIN = 24;
+    const FAB_SIZE = 56;
+    const PANEL_MIN_WIDTH = 320;
+    const PANEL_MAX_WIDTH = 520;
+    const PANEL_MIN_HEIGHT = 260;
+    const PANEL_DEFAULT_WIDTH = 420;
+    const PANEL_DEFAULT_HEIGHT = 440;
+    const KEYBOARD_STEP = 8;
+    const KEYBOARD_STEP_LARGE = 32;
+
+    /**
+     * Panel styles: host appearance through `--dsw-alias-*` / radius / focus tokens, with
+     * self-contained dual-theme fallbacks that only apply when a token is unavailable.
+     * No external package, no DOM outside this component.
+     */
+    const PANEL_CSS = `
+.mcd-root{
+  --mcd-primary:#3c8527;
+  --mcd-on-primary:#ffffff;
+  --mcd-primary-container:color-mix(in srgb,var(--mcd-primary) 18%,transparent);
+  --mcd-on-primary-container:#1f5a12;
+  --mcd-surface:var(--dsw-alias-bg-layer-1,#fdf8fd);
+  --mcd-surface-container:var(--dsw-alias-bg-layer-2,#f3edf7);
+  --mcd-surface-container-high:#ece6f0;
+  --mcd-surface-container-highest:#e6e0e9;
+  --mcd-on-surface:var(--dsw-alias-label-primary,#1d1b20);
+  --mcd-on-surface-variant:var(--dsw-alias-label-secondary,#49454f);
+  --mcd-outline:var(--dsw-alias-border-l3,#79747e);
+  --mcd-outline-variant:var(--dsw-alias-border-l2,#cac4d0);
+  --mcd-error:var(--dsw-alias-label-error,#b3261e);
+  --mcd-success:#2e7d32;
+  --mcd-warn:#b26a00;
+  --mcd-hover:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.06));
+  --mcd-pressed:var(--dsw-alias-interactive-bg-active,rgba(0,0,0,.1));
+  --mcd-focus:var(--dsw-focus-ring-color,#4176e6);
+  --mcd-radius-xl:28px;
+  --mcd-radius-lg:16px;
+  --mcd-radius-md:12px;
+  --mcd-radius-full:999px;
+  --mcd-shadow-1:0 1px 2px rgba(0,0,0,.3),0 1px 3px 1px rgba(0,0,0,.15);
+  --mcd-shadow-2:0 1px 2px rgba(0,0,0,.3),0 2px 6px 2px rgba(0,0,0,.15);
+  --mcd-shadow-3:0 4px 8px 3px rgba(0,0,0,.15),0 1px 3px rgba(0,0,0,.3);
+  --mcd-font:var(--dsw-font-family,"Segoe UI",system-ui,-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif);
+  --mcd-mono:var(--dsw-font-markdown-code-font-family,ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace);
+  position:fixed;z-index:50;box-sizing:border-box;min-width:0;padding:0;border:0;
+  border-radius:var(--mcd-radius-xl);background:var(--mcd-surface-container);color:var(--mcd-on-surface);
+  font-family:var(--mcd-font);font-size:13px;line-height:1.45;text-align:start;pointer-events:auto;overflow:hidden;
+  box-shadow:var(--mcd-shadow-3);user-select:none;
+}
+.mcd-root *{box-sizing:border-box}
+.mcd-root :focus-visible{outline:2px solid var(--mcd-focus);outline-offset:2px}
+.mcd-root[data-dragging=true]{cursor:grabbing}
+body[data-ds-dark-theme] .mcd-root{
+  --mcd-on-primary:#1a1a1a;
+  --mcd-primary:#8fd67a;
+  --mcd-surface:#141218;
+  --mcd-surface-container:#211f26;
+  --mcd-surface-container-high:#2b2930;
+  --mcd-surface-container-highest:#36343b;
+  --mcd-on-surface:#e6e0e9;
+  --mcd-on-surface-variant:#cac4d0;
+  --mcd-outline:#938f99;
+  --mcd-outline-variant:#49454f;
+  --mcd-primary-container:color-mix(in srgb,#8fd67a 20%,transparent);
+  --mcd-on-primary-container:#a9e08f;
+  --mcd-error:#f2b8b5;
+  --mcd-success:#8fd67a;
+  --mcd-warn:#fdd663;
+  --mcd-hover:rgba(255,255,255,.06);
+  --mcd-pressed:rgba(255,255,255,.1);
+  --mcd-shadow-1:0 1px 2px rgba(0,0,0,.5),0 1px 3px 1px rgba(0,0,0,.35);
+  --mcd-shadow-2:0 1px 2px rgba(0,0,0,.5),0 2px 6px 2px rgba(0,0,0,.35);
+  --mcd-shadow-3:0 4px 8px 3px rgba(0,0,0,.4),0 1px 3px rgba(0,0,0,.6);
+}
+.mcd-root[data-mode=icon]{border-radius:var(--mcd-radius-lg);box-shadow:var(--mcd-shadow-2);overflow:visible}
+.mcd-root[data-mode=icon]:hover{box-shadow:var(--mcd-shadow-3)}
+.mcd-fab{display:grid;place-items:center;width:100%;height:100%;padding:0;border:0;border-radius:var(--mcd-radius-lg);background:var(--mcd-primary-container);color:var(--mcd-on-primary-container);cursor:pointer;transition:background .15s ease,box-shadow .15s ease}
+.mcd-fab:hover{background:color-mix(in srgb,var(--mcd-primary) 26%,transparent)}
+.mcd-fab:active{background:color-mix(in srgb,var(--mcd-primary) 34%,transparent)}
+.mcd-fab svg{width:30px;height:30px;fill:currentColor;pointer-events:none}
+.mcd-fab-badge{position:absolute;right:9px;bottom:9px;width:10px;height:10px;border-radius:50%;background:var(--mcd-on-surface-variant);box-shadow:0 0 0 2px var(--mcd-surface-container)}
+.mcd-fab-badge[data-phase=ready]{background:var(--mcd-success)}
+.mcd-fab-badge[data-phase=launching]{background:var(--mcd-warn);animation:mcd-pulse 1.2s ease-in-out infinite}
+.mcd-fab-badge[data-phase=failed]{background:var(--mcd-error)}
+@keyframes mcd-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.mcd-fab-badge[data-phase=launching]{animation:none}}
+.mcd-compact{display:flex;flex-direction:column;gap:2px;width:100%;height:auto;padding:4px 8px 6px;border-radius:var(--mcd-radius-xl);background:var(--mcd-surface-container)}
+.mcd-compact .mcd-head{padding:2px 0;gap:6px;cursor:grab}
+.mcd-compact .mcd-logo{width:28px;height:28px}
+.mcd-compact .mcd-logo svg{width:18px;height:18px}
+.mcd-compact .mcd-title{font-size:13px}
+.mcd-compact .mcd-subtitle{font-size:10px}
+.mcd-compact .mcd-actions-row{padding:0;gap:4px}
+.mcd-compact .mcd-icon-btn{width:36px;height:36px}
+.mcd-compact .mcd-icon-btn svg{width:20px;height:20px}
+.mcd-compact .mcd-icon-btn[data-variant=filled]{width:40px;height:40px}
+.mcd-logo-btn{padding:0;border:0;font:inherit;cursor:pointer;transition:background .15s ease}
+.mcd-logo-btn:hover{background:color-mix(in srgb,var(--mcd-primary) 26%,transparent)}
+.mcd-sheet{display:flex;flex-direction:column;width:100%;height:100%;min-height:0;overflow:hidden;border-radius:var(--mcd-radius-xl)}
+.mcd-drag-handle{flex:0 0 auto;width:32px;height:4px;margin:8px auto 0;border-radius:2px;background:var(--mcd-outline-variant)}
+.mcd-head{display:flex;align-items:center;gap:8px;flex:0 0 auto;min-width:0;padding:6px 8px 6px 12px;cursor:grab;touch-action:none}
+.mcd-head[data-dragging=true]{cursor:grabbing}
+.mcd-logo{display:grid;place-items:center;flex:0 0 auto;width:32px;height:32px;border-radius:var(--mcd-radius-full);background:var(--mcd-primary-container);color:var(--mcd-on-primary-container)}
+.mcd-logo svg{width:20px;height:20px;fill:currentColor}
+.mcd-head-text{display:flex;flex-direction:column;min-width:0;gap:1px}
+.mcd-title{font-size:14px;font-weight:500;letter-spacing:.1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mcd-subtitle{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:500;letter-spacing:.3px;color:var(--mcd-on-surface-variant);white-space:nowrap}
+.mcd-status-dot{width:8px;height:8px;border-radius:50%;background:var(--mcd-on-surface-variant);flex:none}
+.mcd-status-dot[data-phase=ready]{background:var(--mcd-success)}
+.mcd-status-dot[data-phase=launching]{background:var(--mcd-warn)}
+.mcd-status-dot[data-phase=failed]{background:var(--mcd-error)}
+.mcd-actions{display:flex;align-items:center;gap:2px;margin-left:auto;flex:0 0 auto}
+.mcd-icon-btn{display:inline-grid;place-items:center;flex:none;width:40px;height:40px;padding:0;border:0;border-radius:var(--mcd-radius-full);background:transparent;color:var(--mcd-on-surface-variant);cursor:pointer;transition:background .15s ease,color .15s ease;font-family:inherit}
+.mcd-icon-btn svg{width:22px;height:22px;fill:currentColor;pointer-events:none}
+.mcd-icon-btn:disabled{opacity:.38;cursor:not-allowed}
+@media (hover:hover){.mcd-icon-btn:not(:disabled):hover{background:var(--mcd-hover)}}
+.mcd-icon-btn:not(:disabled):active{background:var(--mcd-pressed)}
+.mcd-icon-btn[data-variant=filled]{background:var(--mcd-primary);color:var(--mcd-on-primary)}
+@media (hover:hover){.mcd-icon-btn[data-variant=filled]:not(:disabled):hover{background:color-mix(in srgb,var(--mcd-primary) 88%,#000)}}
+.mcd-icon-btn[data-variant=tonal]{background:var(--mcd-primary-container);color:var(--mcd-on-primary-container)}
+@media (hover:hover){.mcd-icon-btn[data-variant=tonal]:not(:disabled):hover{background:color-mix(in srgb,var(--mcd-primary) 26%,transparent)}}
+.mcd-icon-btn[data-variant=text]{width:36px;height:36px}
+.mcd-icon-btn[data-variant=text][aria-pressed=true],.mcd-icon-btn[data-variant=text][data-on=true]{background:var(--mcd-primary-container);color:var(--mcd-on-primary-container)}
+.mcd-icon-btn.mcd-busy svg{animation:mcd-spin .9s linear infinite}
+@keyframes mcd-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.mcd-icon-btn.mcd-busy svg{animation:none}}
+.mcd-body{flex:1 1 auto;display:flex;flex-direction:column;gap:10px;min-height:0;padding:2px 12px 12px;overflow:hidden;user-select:text}
+.mcd-actions-row{display:flex;align-items:center;gap:6px;flex:none;flex-wrap:wrap}
+.mcd-actions-row .mcd-spacer{flex:1 1 auto}
+.mcd-tabs{display:flex;flex:none;gap:4px;padding:4px;border-radius:var(--mcd-radius-full);background:var(--mcd-surface-container-high)}
+.mcd-tab{flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:4px;height:34px;border:0;border-radius:var(--mcd-radius-full);background:transparent;color:var(--mcd-on-surface-variant);font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;transition:background .15s ease,color .15s ease}
+.mcd-tab svg{width:20px;height:20px;fill:currentColor;pointer-events:none}
+@media (hover:hover){.mcd-tab:not([data-on=true]):hover{background:var(--mcd-hover)}}
+.mcd-tab[data-on=true]{background:var(--mcd-primary-container);color:var(--mcd-on-primary-container)}
+.mcd-panel{display:flex;flex-direction:column;gap:8px;min-width:0;min-height:0;flex:1 1 auto;overflow:hidden}
+.mcd-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
+.mcd-row .mcd-meta{margin-left:auto}
+.mcd-seg{display:inline-flex;flex:none;gap:2px;padding:2px;border-radius:var(--mcd-radius-full);background:var(--mcd-surface-container-high)}
+.mcd-seg-btn{display:inline-grid;place-items:center;flex:none;width:32px;height:30px;padding:0;border:0;border-radius:var(--mcd-radius-full);background:transparent;color:var(--mcd-on-surface-variant);cursor:pointer;transition:background .15s ease,color .15s ease}
+.mcd-seg-btn svg{width:18px;height:18px;fill:currentColor;pointer-events:none}
+@media (hover:hover){.mcd-seg-btn:not(:disabled):not([data-on=true]):hover{background:var(--mcd-hover)}}
+.mcd-seg-btn[data-on=true]{background:var(--mcd-primary-container);color:var(--mcd-on-primary-container)}
+.mcd-seg-btn:disabled{opacity:.38;cursor:not-allowed}
+.mcd-input{width:100%;padding:9px 12px;border:1px solid var(--mcd-outline);border-radius:var(--mcd-radius-md);background:transparent;color:var(--mcd-on-surface);font-family:inherit;font-size:13px;line-height:1.4}
+.mcd-input:hover{border-color:var(--mcd-on-surface)}
+.mcd-input:focus{outline:2px solid var(--mcd-primary);outline-offset:-1px;border-color:transparent}
+.mcd-input::placeholder{color:var(--mcd-on-surface-variant)}
+.mcd-search{flex:1 1 170px;min-width:0}
+.mcd-code{min-height:84px;resize:vertical;font-family:var(--mcd-mono);font-size:12px;line-height:1.5;background:var(--mcd-surface-container-high);border-color:transparent;border-radius:var(--mcd-radius-md)}
+.mcd-code:focus{outline:2px solid var(--mcd-primary);background:var(--mcd-surface-container-high)}
+.mcd-pre{margin:0;padding:8px 10px;border-radius:var(--mcd-radius-md);background:var(--mcd-surface-container-high);color:var(--mcd-on-surface);font-family:var(--mcd-mono);font-size:11px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;flex:1 1 auto;min-height:0;overflow:auto}
+.mcd-lines{flex:1 1 auto;min-height:0}
+.mcd-line{white-space:pre-wrap;overflow-wrap:anywhere}
+.mcd-line[data-error=true]{color:var(--mcd-error)}
+.mcd-line-seq{color:var(--mcd-on-surface-variant)}
+.mcd-hits{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;flex:1 1 0;min-height:72px;overflow:auto}
+.mcd-hit{display:flex;flex-direction:column;gap:2px;width:100%;padding:8px 10px;border:0;border-radius:var(--mcd-radius-md);background:transparent;color:var(--mcd-on-surface);font-family:inherit;text-align:start;cursor:pointer}
+@media (hover:hover){.mcd-hit:hover{background:var(--mcd-surface-container-high)}}
+.mcd-hit[data-on=true]{background:var(--mcd-primary-container);color:var(--mcd-on-primary-container)}
+.mcd-hit-title{font-size:12px;font-weight:500;overflow-wrap:anywhere}
+.mcd-hit-path{font-family:var(--mcd-mono);font-size:11px;color:var(--mcd-on-surface-variant);overflow-wrap:anywhere}
+.mcd-hit-snippet{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:11px;color:var(--mcd-on-surface-variant);overflow-wrap:anywhere}
+.mcd-doc{display:flex;flex-direction:column;gap:6px;min-width:0;flex:2 1 0;min-height:0;padding-top:8px;border-top:1px solid var(--mcd-outline-variant)}
+.mcd-doc-path{flex:1 1 auto;min-width:0;font-family:var(--mcd-mono);font-size:11px;color:var(--mcd-on-surface-variant);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcd-progress{display:flex;align-items:center;gap:8px;flex:none;padding:0 4px}
+.mcd-linear{position:relative;flex:1 1 auto;height:4px;border-radius:2px;background:var(--mcd-surface-container-highest);overflow:hidden}
+.mcd-linear::after{content:"";position:absolute;inset:0;width:40%;border-radius:2px;background:var(--mcd-primary);animation:mcd-indeterminate 1.4s ease-in-out infinite}
+@keyframes mcd-indeterminate{0%{transform:translateX(-110%)}100%{transform:translateX(280%)}}
+@media (prefers-reduced-motion:reduce){.mcd-linear::after{animation:none;transform:none;width:100%;opacity:.5}}
+.mcd-progress-text{color:var(--mcd-on-surface-variant);font-size:11px;overflow-wrap:anywhere}
+.mcd-hint{margin:0;color:var(--mcd-on-surface-variant);font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.mcd-note{margin:0;color:var(--mcd-on-surface-variant);font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.mcd-error{margin:0;color:var(--mcd-error);font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.mcd-meta{color:var(--mcd-on-surface-variant);font-size:11px;white-space:nowrap}
+.mcd-empty{margin:0;padding:8px 0;color:var(--mcd-on-surface-variant);font-size:12px}
+.mcd-resize{position:absolute;right:2px;bottom:2px;display:flex;align-items:flex-end;justify-content:flex-end;width:20px;height:20px;padding:0 3px 3px 0;border:0;background:transparent;color:var(--mcd-on-surface-variant);cursor:nwse-resize;touch-action:none;border-radius:0 0 var(--mcd-radius-xl) 0}
+.mcd-resize::after{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;border-bottom-right-radius:2px;opacity:.7}
+.mcd-body::-webkit-scrollbar,.mcd-pre::-webkit-scrollbar,.mcd-hits::-webkit-scrollbar{width:8px;height:8px}
+.mcd-body::-webkit-scrollbar-thumb,.mcd-pre::-webkit-scrollbar-thumb,.mcd-hits::-webkit-scrollbar-thumb{background:var(--mcd-outline-variant);border-radius:4px}
+.mcd-body::-webkit-scrollbar-thumb:hover,.mcd-pre::-webkit-scrollbar-thumb:hover,.mcd-hits::-webkit-scrollbar-thumb:hover{background:var(--mcd-outline)}
+
+.mcd-seg .mcd-icon-btn{width:32px;height:30px}
+.mcd-seg .mcd-icon-btn svg{width:18px;height:18px}
+.mcd-actions-row .mcd-icon-btn[data-variant=filled]{width:44px;height:44px}
+.mcd-actions-row .mcd-icon-btn[data-variant=filled] svg{width:24px;height:24px}
+.mcd-actions-row .mcd-icon-btn{margin-right:2px}
+.mcd-icon-btn[data-variant=filled] svg{width:24px;height:24px}
+  `;
+
+    /** Panel copy. Client locale dictionaries are separate from the Host locale files. */
+    const en = {
+      title: 'Minecraft dev',
+      openPanel: 'Open the Minecraft dev panel',
+      toIcon: 'Back to the icon',
+      statusIdle: 'Not running',
+      statusLaunching: 'Launching',
+      statusReady: 'In game',
+      statusStopped: 'Stopped',
+      statusFailed: 'Launch failed',
+      statusUnknown: 'Unknown',
+      launch: 'Launch game',
+      stop: 'Stop game',
+      reload: 'Reload',
+      refresh: 'Refresh',
+      expand: 'Show console',
+      collapse: 'Hide console',
+      movePanel: 'Move panel (drag or arrow keys)',
+      resizePanel: 'Resize panel (drag or arrow keys)',
+      logs: 'Logs',
+      exec: 'Run code',
+      docs: 'Docs',
+      search: 'Search',
+      searching: 'Searching…',
+      run: 'Run',
+      busy: 'Working…',
+      starting: 'Launching (up to ~3 min)',
+      waited: 'waited {seconds}s',
+      startingHint: 'Starting the ModPC client and waiting for a save…',
+      idleHint: 'The game is not running. Press “Launch game”, or run /mcdev discover to check the ModPC setup.',
+      notReadyHint: 'The game has not entered a save yet; logs and code execution may be limited.',
+      remoteUnavailable: 'The UI bridge is not connected, so the game state cannot be read.',
+      loadFailed: 'Could not read the state. Press Refresh to retry.',
+      commandFailed: 'The command failed.',
+      badJson: 'The command returned an unreadable payload.',
+      logsEmpty: 'No log lines yet.',
+      loadNewer: 'Continue',
+      noNewer: 'Already at the newest logs.',
+      logLauncher: 'Launcher',
+      logGame: 'Game',
+      onlyErrors: 'Errors only',
+      gameLogsEmpty: 'No game log lines yet.',
+      gameLogs: 'Game logs',
+      nextCursor: 'next {cursor}',
+      logCount: '{count} lines',
+      execPlaceholder: 'Python code to run inside the game…',
+      execResult: 'Result',
+      execHint: 'Ctrl+Enter runs the code.',
+      copy: 'Copy',
+      copied: 'Copied',
+      side: 'Side',
+      client: 'Client',
+      server: 'Server',
+      docsPlaceholder: 'Search the bundled NetEase ModSDK docs…',
+      noDocs: 'No document matched; try another keyword',
+      docChars: '{shown}/{total} chars',
+      docLoadMore: 'Load more',
+      docTruncated: 'The preview is truncated; load more to continue.',
+      docReadFailed: 'Could not read the document.',
+      reloadOk: 'Reload requested.',
+      cancelled: 'Stopped waiting. The game may still be launching in the background.',
+      cancel: 'Cancel',
+      waitTimedOut: 'Still launching after the wait; press Refresh to check again.',
+    };
+
+    const zh = {
+      title: 'Minecraft 开发',
+      openPanel: '打开 Minecraft 开发面板',
+      toIcon: '回到图标',
+      statusIdle: '未启动',
+      statusLaunching: '启动中',
+      statusReady: '已进入游戏',
+      statusStopped: '已停止',
+      statusFailed: '启动失败',
+      statusUnknown: '未知',
+      launch: '启动游戏',
+      stop: '停止游戏',
+      reload: '重载',
+      refresh: '刷新',
+      expand: '展开控制台',
+      collapse: '收起控制台',
+      movePanel: '移动面板（拖拽或方向键）',
+      resizePanel: '调整面板大小（拖拽或方向键）',
+      logs: '日志',
+      exec: '执行代码',
+      docs: '文档检索',
+      search: '搜索',
+      searching: '搜索中…',
+      run: '运行',
+      busy: '处理中…',
+      starting: '启动中（最长约 3 分钟）',
+      waited: '已等待 {seconds} 秒',
+      startingHint: '正在启动 ModPC 开发客户端并等待进入存档…',
+      idleHint: '游戏未启动：点「启动游戏」；环境有问题可在输入框执行 /mcdev discover 检查。',
+      notReadyHint: '游戏尚未进入存档，日志与执行代码可能受限。',
+      remoteUnavailable: '界面通道未就绪，暂时无法读取游戏状态。',
+      loadFailed: '读取失败，点「刷新」重试。',
+      commandFailed: '命令执行失败。',
+      badJson: '命令返回内容无法解析。',
+      logsEmpty: '暂无日志。',
+      loadNewer: '继续',
+      noNewer: '已是最新日志。',
+      logLauncher: '启动器',
+      logGame: '游戏',
+      onlyErrors: '只看错误',
+      gameLogsEmpty: '暂无游戏日志。',
+      gameLogs: '游戏日志',
+      nextCursor: 'next {cursor}',
+      logCount: '{count} 行',
+      execPlaceholder: '输入要在游戏中执行的 Python 代码…',
+      execResult: '执行结果',
+      execHint: 'Ctrl+Enter 运行。',
+      copy: '复制',
+      copied: '已复制',
+      side: '端侧',
+      client: '客户端',
+      server: '服务端',
+      docsPlaceholder: '输入关键词检索内置网易 ModSDK 文档…',
+      noDocs: '未找到文档，换个关键词试试',
+      docChars: '已显示 {shown}/{total} 字符',
+      docLoadMore: '加载更多',
+      docTruncated: '预览已截断，点「加载更多」继续。',
+      docReadFailed: '读取文档失败。',
+      reloadOk: '已发送重载请求。',
+      cancelled: '已取消等待；游戏仍可能在后台启动。',
+      cancel: '取消',
+      waitTimedOut: '等待超时，游戏可能仍在启动；点「刷新」再看。',
+    };
+
+    /** Parse the JSON object text of a command result. */
+    function parseJsonText(text) {
+      if (typeof text !== 'string') return undefined;
+      try {
+        const value = JSON.parse(text);
+        return value !== null && typeof value === 'object' && Array.isArray(value) === false ? value : undefined;
+      } catch (error) {
+        return undefined;
+      }
+    }
+
+    /**
+     * Unwrap one remote command execution outcome.
+     *
+     * The client remote transport is a RemoteResult: `{ ok: true, value: CommandExecution }`
+     * or `{ ok: false, error: RemoteError }`; CommandExecution is `{ commandId, result }` and
+     * `result` is `{ kind, text }`.
+     *
+     * @param {object} outcome - RemoteResult returned by `remote.commands.execute`.
+     * @returns {{kind: string, text: string} | undefined} the command result, or undefined.
+     */
+    function commandResultOf(outcome) {
+      if (outcome === null || outcome === undefined || typeof outcome !== 'object') return undefined;
+      if (outcome.ok === false) {
+        const error = outcome.error !== null && typeof outcome.error === 'object' ? outcome.error : {};
+        const message = typeof error.message === 'string' ? error.message : 'command refused';
+        const code = typeof error.code === 'string' ? ' (' + error.code + ')' : '';
+        return { kind: 'error', text: message + code };
+      }
+      const value = outcome.value !== undefined ? outcome.value : outcome;
+      if (value === null || typeof value !== 'object') return undefined;
+      const result = value.result !== undefined ? value.result : value;
+      if (result === null || typeof result !== 'object') return undefined;
+      return {
+        kind: typeof result.kind === 'string' ? result.kind : 'success',
+        text: typeof result.text === 'string' ? result.text : '',
+      };
+    }
+
+    /**
+     * Extract the Status object from a status/start/stop/wait payload.
+     *
+     * The Host answers both `{ ok, status }` (its uniform envelope) and a bare
+     * Status object; accept either so the panel never renders raw JSON.
+     */
+    function statusOf(data) {
+      if (data === null || data === undefined || typeof data !== 'object') return undefined;
+      const candidate = data.status !== null && typeof data.status === 'object' ? data.status : data;
+      return typeof candidate.phase === 'string' ? candidate : undefined;
+    }
+
+    /** Unwrap the launcher log (`{ ok, source, logs }` or a bare `{ lines, next }`). */
+    function logDataOf(data) {
+      if (data === null || data === undefined || typeof data !== 'object') return undefined;
+      return data.logs !== null && typeof data.logs === 'object' ? data.logs : data;
+    }
+
+    /** Readable message for a failed command: the payload `error` or the first line. */
+    function messageOf(result, fallback) {
+      const data = result !== null && result !== undefined ? result.data : undefined;
+      if (data !== null && typeof data === 'object' && typeof data.error === 'string' && data.error !== '') return data.error;
+      const line = firstLine(result !== null && result !== undefined ? result.text : '');
+      return line !== '' ? line : fallback;
+    }
+
+    /** First non-empty line of a command result text. */
+    function firstLine(text) {
+      const line = String(text === undefined || text === null ? '' : text)
+        .split('\n')
+        .find((item) => item.trim() !== '');
+      return line === undefined ? '' : line.trim();
+    }
+
+    /** Translate one key, substituting `{name}` placeholders; never throws or returns blank. */
+    function translate(t, key, vars) {
+      let text;
+      try {
+        text = typeof t === 'function' ? t(key) : key;
+      } catch (error) {
+        text = key;
+      }
+      if (typeof text !== 'string' || text === '') text = key;
+      if (vars !== undefined) {
+        for (const name of Object.keys(vars)) text = text.split('{' + name + '}').join(String(vars[name]));
+      }
+      return text;
+    }
+
+    /**
+     * Encode one free-text command argument as base64url.
+     *
+     * The Host decodes any `--<name>-b64=<base64url>` into the `<name>` argument, which keeps
+     * multi-line Python code and search queries intact through the command tokenizer. UTF-8 is
+     * encoded with TextEncoder when available and the result is standard base64url (no padding).
+     */
+    function encodeArg(value) {
+      const text = String(value === undefined || value === null ? '' : value);
+      try {
+        let bytes;
+        if (typeof globalThis.TextEncoder === 'function') {
+          bytes = new globalThis.TextEncoder().encode(text);
+        } else {
+          bytes = [];
+          for (let index = 0; index < text.length; index += 1) {
+            let code = text.charCodeAt(index);
+            if (code >= 0xd800 && code <= 0xdbff && index + 1 < text.length) {
+              const low = text.charCodeAt(index + 1);
+              if (low >= 0xdc00 && low <= 0xdfff) {
+                code = 0x10000 + ((code - 0xd800) << 10) + (low - 0xdc00);
+                index += 1;
+              }
+            }
+            if (code < 0x80) bytes.push(code);
+            else if (code < 0x800) bytes.push(0xc0 | (code >> 6), 0x80 | (code & 0x3f));
+            else if (code < 0x10000) bytes.push(0xe0 | (code >> 12), 0x80 | ((code >> 6) & 0x3f), 0x80 | (code & 0x3f));
+            else bytes.push(0xf0 | (code >> 18), 0x80 | ((code >> 12) & 0x3f), 0x80 | ((code >> 6) & 0x3f), 0x80 | (code & 0x3f));
+          }
+        }
+        let binary = '';
+        for (let index = 0; index < bytes.length; index += 1) binary += String.fromCharCode(bytes[index]);
+        const base64 = typeof globalThis.btoa === 'function' ? globalThis.btoa(binary) : '';
+        if (base64 !== '') return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      } catch (error) {
+        // fall through to the manual encoder below
+      }
+      try {
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+        const bytes = [];
+        for (let index = 0; index < text.length; index += 1) {
+          const code = text.charCodeAt(index);
+          if (code < 0x80) bytes.push(code);
+          else if (code < 0x800) bytes.push(0xc0 | (code >> 6), 0x80 | (code & 0x3f));
+          else bytes.push(0xe0 | (code >> 12), 0x80 | ((code >> 6) & 0x3f), 0x80 | (code & 0x3f));
+        }
+        let output = '';
+        for (let index = 0; index < bytes.length; index += 3) {
+          const first = bytes[index];
+          const second = index + 1 < bytes.length ? bytes[index + 1] : 0;
+          const third = index + 2 < bytes.length ? bytes[index + 2] : 0;
+          output += alphabet[first >> 2];
+          output += alphabet[((first & 0x03) << 4) | (second >> 4)];
+          if (index + 1 < bytes.length) output += alphabet[((second & 0x0f) << 2) | (third >> 6)];
+          if (index + 2 < bytes.length) output += alphabet[third & 0x3f];
+        }
+        return output;
+      } catch (error) {
+        return '';
+      }
+    }
+
+    /** A finite integer from an unknown value, or undefined. */
+    function intOf(value) {
+      const number = typeof value === 'number' ? value : Number(value);
+      return Number.isFinite(number) ? Math.trunc(number) : undefined;
+    }
+
+    /** Clip one long text for display. */
+    function clipText(text, limit) {
+      const value = typeof text === 'string' ? text : '';
+      return value.length > limit ? value.slice(0, limit) + '\n…' : value;
+    }
+
+    /** Normalize Status.phase to one of the five contract values (or 'unknown'). */
+    function phaseOf(status) {
+      const phase = status !== null && status !== undefined && typeof status === 'object' ? status.phase : undefined;
+      if (phase === 'idle' || phase === 'launching' || phase === 'ready' || phase === 'stopped' || phase === 'failed') return phase;
+      return 'unknown';
+    }
+
+    /** The locale key for one normalized phase. */
+    const PHASE_KEY = {
+      idle: 'statusIdle',
+      launching: 'statusLaunching',
+      ready: 'statusReady',
+      stopped: 'statusStopped',
+      failed: 'statusFailed',
+      unknown: 'statusUnknown',
+    };
+
+    /** Whether the remote command bridge can be used. */
+    function remoteReady(remote) {
+      return (
+        remote !== null &&
+        remote !== undefined &&
+        remote.commands !== null &&
+        remote.commands !== undefined &&
+        typeof remote.commands.execute === 'function'
+      );
+    }
+
+    /** Best-effort clipboard write; resolves false when the API is missing or refuses. */
+    function writeClipboard(text) {
+      const value = typeof text === 'string' ? text : '';
+      try {
+        const nav = globalThis.navigator;
+        if (nav !== undefined && nav.clipboard !== undefined && typeof nav.clipboard.writeText === 'function') {
+          return Promise.resolve(nav.clipboard.writeText(value)).then(
+            () => true,
+            () => false,
+          );
+        }
+      } catch (error) {
+        // clipboard unavailable
+      }
+      return Promise.resolve(false);
+    }
+
+    /**
+     * Current viewport size with safe fallbacks (the panel is a fixed-position card).
+     * @returns {{width: number, height: number}}
+     */
+    function viewportSize() {
+      const width = typeof globalThis.innerWidth === 'number' && globalThis.innerWidth > 0 ? globalThis.innerWidth : 1440;
+      const height = typeof globalThis.innerHeight === 'number' && globalThis.innerHeight > 0 ? globalThis.innerHeight : 900;
+      return { width, height };
+    }
+
+    /** Clamp one number into `[min, max]`. */
+    function clampNumber(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    /**
+     * Presentation mode of the floating panel:
+     *  - `icon`    only the Minecraft icon (a 56dp FAB);
+     *  - `compact` the icon plus the primary actions, without logs or tabs;
+     *  - `full`    the whole console with tabs and content.
+     */
+    const PANEL_MODES = ['icon', 'compact', 'full'];
+    const COMPACT_WIDTH = 232;
+    /** Height estimate used only for viewport clamping; the card itself hugs its content. */
+    const COMPACT_HEIGHT = 92;
+
+    /** Normalize one stored mode value. */
+    function modeOf(value) {
+      return value === 'compact' || value === 'full' ? value : 'icon';
+    }
+
+    /**
+     * Keep one card rect inside the viewport so a resize never strands the panel.
+     * The effective box depends on the mode: icon = FAB, compact = short card, full = whole card.
+     * @param {{x?: number, y?: number, width?: number, height?: number, mode?: string}} rect
+     * @returns {{x: number, y: number, width: number, height: number, mode: string}}
+     */
+    function clampPanelRect(rect) {
+      const viewport = viewportSize();
+      const mode = modeOf(rect.mode);
+      const maxWidth = Math.max(PANEL_MIN_WIDTH, Math.min(PANEL_MAX_WIDTH, viewport.width - EDGE_MARGIN * 2));
+      const width = clampNumber(intOf(rect.width) === undefined ? PANEL_DEFAULT_WIDTH : intOf(rect.width), PANEL_MIN_WIDTH, maxWidth);
+      const heightCap = Math.max(PANEL_MIN_HEIGHT, viewport.height - EDGE_MARGIN * 2 - DEFAULT_MARGIN);
+      const height = clampNumber(intOf(rect.height) === undefined ? PANEL_DEFAULT_HEIGHT : intOf(rect.height), PANEL_MIN_HEIGHT, heightCap);
+      const effectiveWidth = mode === 'icon' ? FAB_SIZE : mode === 'compact' ? COMPACT_WIDTH : width;
+      const effectiveHeight = mode === 'icon' ? FAB_SIZE : mode === 'compact' ? COMPACT_HEIGHT : height;
+      const maxX = Math.max(EDGE_MARGIN, viewport.width - effectiveWidth - EDGE_MARGIN);
+      const maxY = Math.max(EDGE_MARGIN, viewport.height - effectiveHeight - EDGE_MARGIN);
+      const x = clampNumber(intOf(rect.x) === undefined ? maxX : intOf(rect.x), EDGE_MARGIN, maxX);
+      const y = clampNumber(intOf(rect.y) === undefined ? maxY : intOf(rect.y), EDGE_MARGIN, maxY);
+      return { x, y, width, height, mode };
+    }
+
+    /** Bottom-right default: the icon sits in the corner, the cards keep their size. */
+    function defaultPanelRect(mode) {
+      const viewport = viewportSize();
+      const normalized = modeOf(mode);
+      const restWidth = normalized === 'icon' ? FAB_SIZE : normalized === 'compact' ? COMPACT_WIDTH : PANEL_DEFAULT_WIDTH;
+      const restHeight = normalized === 'icon' ? FAB_SIZE : normalized === 'compact' ? COMPACT_HEIGHT : PANEL_DEFAULT_HEIGHT;
+      return clampPanelRect({
+        x: viewport.width - restWidth - DEFAULT_MARGIN,
+        y: viewport.height - restHeight - DEFAULT_MARGIN,
+        width: PANEL_DEFAULT_WIDTH,
+        height: PANEL_DEFAULT_HEIGHT,
+        mode: normalized,
+      });
+    }
+
+    /** Read persisted geometry and mode; malformed storage falls back to the icon corner. */
+    function loadPanelRect() {
+      let stored;
+      try {
+        const raw = globalThis.localStorage ? globalThis.localStorage.getItem(STORAGE_KEY) : null;
+        if (typeof raw === 'string' && raw !== '') stored = JSON.parse(raw);
+      } catch (error) {
+        stored = undefined;
+      }
+      if (stored !== null && stored !== undefined && typeof stored === 'object') {
+        // Geometry is remembered, but every page load starts from icon mode so the
+        // floating entry never covers the conversation on its own.
+        return clampPanelRect({
+          x: intOf(stored.x),
+          y: intOf(stored.y),
+          width: intOf(stored.width),
+          height: intOf(stored.height),
+          mode: 'icon',
+        });
+      }
+      return defaultPanelRect('full');
+    }
+
+    /** Persist geometry and mode; storage failure never breaks the panel. */
+    function savePanelRect(rect) {
+      try {
+        if (!globalThis.localStorage) return;
+        globalThis.localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({
+            x: Math.round(rect.x),
+            y: Math.round(rect.y),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+            mode: modeOf(rect.mode),
+          }),
+        );
+      } catch (error) {
+        // geometry is a convenience; keep the panel usable without storage
+      }
+    }
+
+    /**
+     * Pick the Session this panel talks to.
+     *
+     * Prefers the Session retained by the main view (`retainedBy.mainView > 0`,
+     * the ui-workspace rule). After a restart or while the workspace is settling
+     * no Session is retained yet, so fall back to the most recently updated
+     * Session instead of rendering nothing: the floating panel must stay
+     * reachable, otherwise the user cannot even launch the game.
+     * @param {object} list - Session list snapshot from `useSessions`.
+     * @returns {string | undefined} the Session id.
+     */
+    function selectMainSession(list) {
+      if (list === null || list === undefined || typeof list !== 'object') return undefined;
+      const byId = list.byId;
+      if (byId === null || byId === undefined || typeof byId !== 'object') return undefined;
+      let fallbackId = undefined;
+      let fallbackScore = -Infinity;
+      for (const summary of Object.values(byId)) {
+        if (summary === null || summary === undefined || typeof summary !== 'object') continue;
+        const id = typeof summary.id === 'string' ? summary.id : undefined;
+        if (id === undefined) continue;
+        const retained = summary.retainedBy;
+        const mainView = retained !== null && retained !== undefined ? retained.mainView : undefined;
+        if (typeof mainView === 'number' && mainView > 0) return id;
+        // 非主视图会话：记录最近更新者作为回退。
+        const score = [summary.updatedAt, summary.lastActiveAt, summary.lastMessageAt, summary.createdAt]
+          .map((value) => (typeof value === 'number' ? value : Number.NaN))
+          .find((value) => Number.isFinite(value));
+        const effective = typeof score === 'number' ? score : 0;
+        if (fallbackId === undefined || effective > fallbackScore) {
+          fallbackId = id;
+          fallbackScore = effective;
+        }
+      }
+      return fallbackId;
+    }
+
+    const views = new Map();
+    const loads = new Map();
+    const statusAttempts = new Set();
+
+    /** A fresh, fully-populated view. */
+    function emptyView() {
+      return {
+        status: undefined,
+        statusError: undefined,
+        logs: {
+          launcher: { lines: [], next: undefined, loaded: false, error: undefined },
+          game: { lines: [], error: undefined, loaded: false, errorsOnly: false },
+        },
+        exec: { code: '', side: 'client', text: '', ran: false, error: undefined, gameLines: [] },
+        docs: { query: '', hits: [], searched: false, path: undefined, title: '', text: '', total: 0, more: false, error: undefined },
+      };
+    }
+
+    /** The cached view for one session, creating the empty snapshot on first use. */
+    function viewOf(sessionId) {
+      if (sessionId === undefined || sessionId === null) return emptyView();
+      const cached = views.get(sessionId);
+      if (cached !== undefined) return cached;
+      const fresh = emptyView();
+      views.set(sessionId, fresh);
+      return fresh;
+    }
+
+    /** Normalize one `{seq,text}[]` payload from a command result. */
+    function normalizeLines(data) {
+      const lines = [];
+      const source = data !== null && data !== undefined && Array.isArray(data.lines) ? data.lines : [];
+      let fallback = 0;
+      for (const line of source) {
+        if (line === null || typeof line !== 'object') continue;
+        const seq = intOf(line.seq);
+        lines.push({
+          seq: seq === undefined ? fallback : seq,
+          text: typeof line.text === 'string' ? line.text : String(line.text === undefined ? '' : line.text),
+        });
+        fallback += 1;
+      }
+      return lines;
+    }
+
+    /** Merge one incremental launcher window into the cached snapshot; seq is unique. */
+    function mergeLogs(previous, data) {
+      const base = previous !== null && previous !== undefined && Array.isArray(previous.lines) ? previous.lines : [];
+      const incoming = normalizeLines(data);
+      const seen = new Set();
+      const lines = [];
+      const push = (list) => {
+        for (const line of list) {
+          if (line === null || typeof line !== 'object') continue;
+          const seq = intOf(line.seq);
+          if (seq !== undefined) {
+            if (seen.has(seq)) continue;
+            seen.add(seq);
+          }
+          lines.push({ seq: seq === undefined ? lines.length : seq, text: typeof line.text === 'string' ? line.text : String(line.text) });
+        }
+      };
+      push(base);
+      push(incoming);
+      lines.sort((left, right) => left.seq - right.seq);
+      const window = lines.length > LOG_MAX ? lines.slice(lines.length - LOG_MAX) : lines;
+      return {
+        lines: window,
+        next: data !== undefined && data !== null && data.next !== undefined ? intOf(data.next) : previous !== undefined && previous !== null ? previous.next : undefined,
+        loaded: true,
+      };
+    }
+
+    /** Whether one log line looks like an error worth marking in the game log. */
+    function looksLikeError(text) {
+      return /error|exception|traceback|failed|fatal|错误|异常|失败/i.test(typeof text === 'string' ? text : '');
+    }
+
+    /** One monospace log block; game-log error lines are marked in the error color. */
+    function LogLines(props) {
+      const lines = Array.isArray(props.lines) ? props.lines : [];
+      if (lines.length === 0) return null;
+      return h(
+        'div',
+        { className: 'mcd-pre mcd-lines', tabIndex: 0, 'aria-label': props.label },
+        lines.map((line, index) =>
+          h(
+            'div',
+            { key: index, className: 'mcd-line', 'data-error': props.highlightErrors === true && looksLikeError(line.text) ? 'true' : 'false' },
+            h('span', { className: 'mcd-line-seq' }, '[' + line.seq + '] '),
+            h('span', null, line.text),
+          ),
+        ),
+      );
+    }
+
+    /** Material Symbols-inspired icon paths (Apache-2.0 subset) used by the Material 3 panel. */
+    const ICON_PATHS = {
+      minecraft:
+        'M12 2 3 7v10l9 5 9-5V7l-9-5Zm0 2.3 6.5 3.6L12 11.5 5.5 7.9 12 4.3ZM5 9.6l6 3.3v7.4l-6-3.3V9.6Zm8 10.7v-7.4l6-3.3v7.4l-6 3.3Z',
+      play: 'M8 5v14l11-7z',
+      stop: 'M6 6h12v12H6z',
+      close:
+        'M6.4 5 5 6.4l5.6 5.6L5 17.6 6.4 19l5.6-5.6L17.6 19 19 17.6l-5.6-5.6L19 6.4 17.6 5 12 10.6z',
+      refresh:
+        'M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A5.99 5.99 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4z',
+      reload: 'M12 4V1L8 5l4 4V6a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z',
+      openFull:
+        'M4 4h7v2H6v5H4V4Zm9 0h7v7h-2V6h-5V4ZM4 13h2v5h5v2H4v-7Zm14 0h2v7h-7v-2h5v-5Z',
+      console:
+        'M4 5h16v14H4V5Zm2 2v10h12V7H6Zm2 1.5 3 3-3 3 1.4 1.4L13.8 11.5 9.4 7.1 8 8.5Z',
+      terminal: 'M4 5h16v14H4V5Zm2 2v10h12V7H6Zm1.5 2.5 2 2-2 2 1 1 3-3-3-3-1 1Zm4.5 5h5v-1.5H12V16.5Z',
+      book: 'M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1Zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5Z',
+      collapse: 'M12 16 6 10h12z',
+      expand: 'M12 8 6 14h12z',
+      newer: 'M11 4h2v9h4l-5 5-5-5h4V4ZM5 19h14v2H5v-2Z',
+      filter: 'M10 18h4v-2h-4v2ZM3 6v2h18V6H3Zm3 7h12v-2H6v2Z',
+      copy: 'M16 1H4a2 2 0 0 0-2 2v14h2V3h12zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11z',
+      search:
+        'M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5Zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14Z',
+      description:
+        'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm4 18H6V4h7v5h5v11Z',
+      gamepad:
+        'M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 2a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z',
+      client: 'M3 4h18v12H3V4Zm2 2v8h14V6H5Zm4 10h6v2H9v-2Z',
+      server:
+        'M4 3h16v6H4V3Zm2 2v2h2V5H6Zm-2 6h16v6H4v-6Zm2 2v2h2v-2H6Zm10-8h2v2h-2V5Zm0 8h2v2h-2v-2Z',
+    };
+
+    /** One inline Material icon. */
+    function Icon(props) {
+      return h(
+        'svg',
+        { viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' },
+        h('path', { d: ICON_PATHS[props.name] || '' }),
+      );
+    }
+
+    /** Material 3 icon button (text / filled / tonal) with tooltip and accessible label. */
+    function IconButton(props) {
+      const busy = props.busy === true;
+      const pressed = props.pressed;
+      return h(
+        'button',
+        {
+          type: 'button',
+          className: 'mcd-icon-btn' + (busy ? ' mcd-busy' : ''),
+          'data-variant': props.variant || 'text',
+          'data-on': pressed === undefined ? undefined : pressed ? 'true' : 'false',
+          'aria-pressed': pressed === undefined ? undefined : pressed ? 'true' : 'false',
+          'aria-label': props.label,
+          title: props.label,
+          disabled: props.disabled === true,
+          onClick: props.onClick,
+          onKeyDown: props.onKeyDown,
+        },
+        h(Icon, { name: props.icon }),
+      );
+    }
+
+    /**
+     * Error boundary so a render bug shows a readable message instead of silently
+     * removing the panel from the overlay.
+     */
+    class McDevBoundary extends React.Component {
+      constructor(props) {
+        super(props);
+        this.state = { error: undefined };
+      }
+      static getDerivedStateFromError(error) {
+        return { error };
+      }
+      render() {
+        if (this.state.error !== undefined) {
+          const message = this.state.error && this.state.error.message ? this.state.error.message : String(this.state.error);
+          return h(
+            'div',
+            {
+              style: {
+                position: 'fixed', left: '12px', top: '12px', zIndex: 99999, maxWidth: '70vw',
+                padding: '8px 12px', borderRadius: '10px', background: '#7f1d1d', color: '#fff',
+                font: '12px/1.4 ui-monospace, monospace', whiteSpace: 'pre-wrap', pointerEvents: 'auto',
+              },
+            },
+            'dsh-mcdev: ' + message,
+          );
+        }
+        return this.props.children;
+      }
+    }
+
+    /**
+     * The floating console window. Renders nothing while the main view retains no Session, and
+     * degrades to an in-window note when the remote command bridge is missing.
+     */
+    function McDevPanel(props) {
+      const sessionId = props.sessionId;
+      const remote = props.remote;
+      const t = typeof props.t === 'function' ? props.t : (key) => key;
+
+      const [view, setView] = React.useState(() => viewOf(sessionId));
+      const [panelRect, setPanelRect] = React.useState(() => loadPanelRect());
+      const [dragging, setDragging] = React.useState(false);
+      const [resizing, setResizing] = React.useState(false);
+      const [tab, setTab] = React.useState('logs');
+      const [action, setAction] = React.useState();
+      const [error, setError] = React.useState();
+      const [note, setNote] = React.useState();
+      const [elapsed, setElapsed] = React.useState(0);
+      const [logBusy, setLogBusy] = React.useState(false);
+      const [execBusy, setExecBusy] = React.useState(false);
+      const [docsBusy, setDocsBusy] = React.useState(false);
+      const [readBusy, setReadBusy] = React.useState(false);
+      const [logSource, setLogSource] = React.useState('launcher');
+
+      const alive = React.useRef(true);
+      const sessionRef = React.useRef(sessionId);
+      sessionRef.current = sessionId;
+      const remoteRef = React.useRef(remote);
+      remoteRef.current = remote;
+      const cancelToken = React.useRef(null);
+      const actionRef = React.useRef();
+      const noteTimer = React.useRef();
+      const panelRectRef = React.useRef(panelRect);
+      panelRectRef.current = panelRect;
+      const dragRef = React.useRef(null);
+      const resizeRef = React.useRef(null);
+      const rootRef = React.useRef(null);
+      const gripRef = React.useRef(null);
+      /** Set when a pointer sequence moved the card: the following click must not expand it. */
+      const suppressClickRef = React.useRef(false);
+      const collapseRef = React.useRef(() => {});
+      const mode = modeOf(panelRect.mode);
+      const expanded = mode === 'full';
+      const compact = mode === 'compact';
+
+      // Every plugin re-apply (and therefore every page start) hands the user an icon entry.
+      const bootKey = props.bootKey;
+      React.useEffect(() => {
+        if (bootKey === undefined || bootKey === null) return undefined;
+        if (modeOf(panelRectRef.current.mode) !== 'icon') {
+          applyRect({ ...panelRectRef.current, mode: 'icon' }, true);
+        }
+        return undefined;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [bootKey]);
+
+      /** Apply one clamped card rect; `persist` writes the localStorage geometry. */
+      const applyRect = (next, persist) => {
+        const clamped = clampPanelRect(next);
+        panelRectRef.current = clamped;
+        setPanelRect(clamped);
+        if (persist === true) savePanelRect(clamped);
+      };
+
+      /** Store one view patch for a session; update the mounted instance only when current. */
+      const commit = (sid, updater) => {
+        if (sid === undefined || sid === null) return;
+        const next = updater(viewOf(sid));
+        views.set(sid, next);
+        if (alive.current && sessionRef.current === sid) setView(next);
+      };
+
+      /** Show a transient note, cleared on a timer that unmount clears. */
+      const flashNote = (text) => {
+        setNote(text);
+        if (noteTimer.current !== undefined) clearTimeout(noteTimer.current);
+        noteTimer.current = setTimeout(() => {
+          noteTimer.current = undefined;
+          if (alive.current) setNote(undefined);
+        }, 2400);
+      };
+
+      /**
+       * Run one `/mcdev ... --json` command through the session command bridge.
+       * @returns {Promise<{kind: string, text: string, data: object | undefined}>}
+       */
+      const runCommand = async (sid, command) => {
+        const bridge = remoteRef.current;
+        if (!remoteReady(bridge)) return { kind: 'error', text: translate(t, 'remoteUnavailable'), data: undefined };
+        try {
+          const outcome = await bridge.commands.execute(sid, command, []);
+          const result = commandResultOf(outcome);
+          if (result === undefined) return { kind: 'error', text: translate(t, 'commandFailed'), data: undefined };
+          return { kind: result.kind, text: result.text, data: parseJsonText(result.text) };
+        } catch (caught) {
+          const message = caught !== null && caught !== undefined && typeof caught.message === 'string' ? caught.message : '';
+          return { kind: 'error', text: message !== '' ? message : translate(t, 'commandFailed'), data: undefined };
+        }
+      };
+
+      /** Read `/mcdev status --json` once per force; cache the snapshot per session. */
+      const loadStatus = async (force) => {
+        const sid = sessionId;
+        if (sid === undefined || sid === null || !remoteReady(remoteRef.current)) return false;
+        const key = sid + '|status';
+        if (loads.has(key)) {
+          await loads.get(key);
+          return true;
+        }
+        if (force !== true && viewOf(sid).status !== undefined) {
+          commit(sid, (current) => current);
+          return true;
+        }
+        const task = (async () => {
+          const result = await runCommand(sid, '/mcdev status --json');
+          const status = statusOf(result.data);
+          if (status !== undefined) {
+            commit(sid, (current) => ({ ...current, status, statusError: undefined }));
+            return true;
+          }
+          const message = result.kind === 'error' ? messageOf(result, translate(t, 'loadFailed')) : translate(t, 'loadFailed');
+          commit(sid, (current) => ({ ...current, statusError: message }));
+          return false;
+        })();
+        loads.set(key, task);
+        try {
+          return await task;
+        } finally {
+          loads.delete(key);
+        }
+      };
+
+      /** First mount: adopt the cached snapshot, or read the status once for this session. */
+      React.useEffect(() => {
+        alive.current = true;
+        const sid = sessionId;
+        if (sid === undefined || sid === null) {
+          return () => {
+            alive.current = false;
+          };
+        }
+        const cached = viewOf(sid);
+        if (cached.status !== undefined) {
+          setView(cached);
+          return () => {
+            alive.current = false;
+          };
+        }
+        if (statusAttempts.has(sid)) {
+          // Another instance already read (or is reading) this session: adopt its snapshot
+          // instead of appending a second status command event.
+          const pending = loads.get(sid + '|status');
+          if (pending !== undefined) {
+            let live = true;
+            pending.then(
+              () => {
+                if (live && alive.current && sessionRef.current === sid) setView(viewOf(sid));
+              },
+              () => {},
+            );
+            return () => {
+              live = false;
+              alive.current = false;
+            };
+          }
+          setView(cached);
+          return () => {
+            alive.current = false;
+          };
+        }
+        statusAttempts.add(sid);
+        setView(cached);
+        void loadStatus(false).then(() => {
+          if (alive.current && sessionRef.current === sid) setView(viewOf(sid));
+        });
+        return () => {
+          alive.current = false;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [sessionId]);
+
+      // Elapsed-time display while the launch command is awaited; no command is polled.
+      React.useEffect(() => {
+        if (action !== 'start') return undefined;
+        const startedAt = Date.now();
+        setElapsed(0);
+        const timer = setInterval(() => {
+          if (!alive.current) return;
+          setElapsed(Math.floor((Date.now() - startedAt) / 1000));
+        }, 1000);
+        return () => clearInterval(timer);
+      }, [action]);
+
+      // Clear the transient-note timer on unmount.
+      React.useEffect(
+        () => () => {
+          if (noteTimer.current !== undefined) {
+            clearTimeout(noteTimer.current);
+            noteTimer.current = undefined;
+          }
+        },
+        [],
+      );
+
+      /**
+       * Switch presentation mode (`icon` → `compact` → `full`, persisted).
+       * Entering a card mode is a user action, so the status is re-read once.
+       */
+      const setMode = (next, options = {}) => {
+        if (next !== 'icon' && next !== 'compact' && next !== 'full') return;
+        if (mode === next) return;
+        applyRect({ ...panelRectRef.current, mode: next }, true);
+        if (next !== 'icon') {
+          const sid = sessionId;
+          if (sid !== undefined && sid !== null && remoteReady(remoteRef.current)) void loadStatus(true);
+        }
+        if (options.focus === true) {
+          const root = rootRef.current;
+          if (root !== null && root !== undefined && typeof root.focus === 'function') {
+            try {
+              root.focus({ preventScroll: true });
+            } catch (error) {
+              root.focus();
+            }
+          }
+        }
+      };
+
+      /** Icon → compact. */
+      const enterCompact = () => setMode('compact', { focus: true });
+      /** Compact → full (or icon → full). */
+      const expandPanel = () => setMode('full', { focus: true });
+      /** Full → compact. */
+      const collapsePanel = () => setMode('compact');
+      /** Compact/full → icon. */
+      const enterIcon = () => setMode('icon');
+      collapseRef.current = collapsePanel;
+
+      /** True when a pointer event starts on a control rather than the drag surface. */
+      const isInteractiveTarget = (target) =>
+        target !== null && target !== undefined && typeof target.closest === 'function'
+          ? target.closest('button, input, textarea, select, a, [data-mcd-no-drag]') !== null
+          : false;
+
+      /** Start dragging the card from its title bar or the collapsed capsule. */
+      const beginDrag = (event) => {
+        if (event === null || event === undefined) return;
+        if (typeof event.button === 'number' && event.button !== 0) return;
+        if (isInteractiveTarget(event.target)) return;
+        const node = event.currentTarget;
+        if (node !== null && node !== undefined && typeof node.setPointerCapture === 'function' && event.pointerId !== undefined) {
+          try {
+            node.setPointerCapture(event.pointerId);
+          } catch (error) {
+            // pointer capture is best effort
+          }
+        }
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+        dragRef.current = {
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          originX: panelRectRef.current.x,
+          originY: panelRectRef.current.y,
+          moved: false,
+        };
+        setDragging(true);
+      };
+
+      /** Move the card with the captured pointer, clamped to the viewport. */
+      const moveDrag = (event) => {
+        const drag = dragRef.current;
+        if (drag === null || drag === undefined) return;
+        if (drag.pointerId !== undefined && event.pointerId !== undefined && drag.pointerId !== event.pointerId) return;
+        const dx = (typeof event.clientX === 'number' ? event.clientX : drag.startX) - drag.startX;
+        const dy = (typeof event.clientY === 'number' ? event.clientY : drag.startY) - drag.startY;
+        if (dx !== 0 || dy !== 0) drag.moved = true;
+        applyRect({ ...panelRectRef.current, x: drag.originX + dx, y: drag.originY + dy }, false);
+      };
+
+      /** Finish the drag: release capture and persist the final position. */
+      const endDrag = (event) => {
+        const drag = dragRef.current;
+        if (drag === null || drag === undefined) return;
+        dragRef.current = null;
+        setDragging(false);
+        const node = event !== null && event !== undefined ? event.currentTarget : null;
+        if (node !== null && node !== undefined && typeof node.releasePointerCapture === 'function' && event.pointerId !== undefined) {
+          try {
+            node.releasePointerCapture(event.pointerId);
+          } catch (error) {
+            // already released
+          }
+        }
+        if (drag.moved === true) {
+          savePanelRect(panelRectRef.current);
+          suppressClickRef.current = true;
+        } else if (event !== null && event !== undefined && event.type === 'pointerup' && mode === 'icon') {
+          // The icon is dragged via pointer events (pointerdown preventDefault suppresses
+          // compatibility clicks), so a tap that did not move it goes to compact mode here.
+          enterCompact();
+        }
+      };
+
+      /** Arrow keys on the focused grip move the card by 8px (32px with Shift). */
+      const onGripKeyDown = (event) => {
+        const step = event.shiftKey === true ? KEYBOARD_STEP_LARGE : KEYBOARD_STEP;
+        let dx = 0;
+        let dy = 0;
+        if (event.key === 'ArrowLeft') dx = -step;
+        else if (event.key === 'ArrowRight') dx = step;
+        else if (event.key === 'ArrowUp') dy = -step;
+        else if (event.key === 'ArrowDown') dy = step;
+        else return;
+        event.preventDefault();
+        applyRect({ ...panelRectRef.current, x: panelRectRef.current.x + dx, y: panelRectRef.current.y + dy }, true);
+      };
+
+      /** Start resizing from the bottom-right handle. */
+      const beginResize = (event) => {
+        if (event === null || event === undefined) return;
+        if (typeof event.button === 'number' && event.button !== 0) return;
+        const node = event.currentTarget;
+        if (node !== null && node !== undefined && typeof node.setPointerCapture === 'function' && event.pointerId !== undefined) {
+          try {
+            node.setPointerCapture(event.pointerId);
+          } catch (error) {
+            // pointer capture is best effort
+          }
+        }
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+        resizeRef.current = {
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          originWidth: panelRectRef.current.width,
+          originHeight: panelRectRef.current.height,
+        };
+        setResizing(true);
+      };
+
+      /** Resize the card; width stays within [320, 520] and the viewport keeps it visible. */
+      const moveResize = (event) => {
+        const resize = resizeRef.current;
+        if (resize === null || resize === undefined) return;
+        if (resize.pointerId !== undefined && event.pointerId !== undefined && resize.pointerId !== event.pointerId) return;
+        const dx = (typeof event.clientX === 'number' ? event.clientX : resize.startX) - resize.startX;
+        const dy = (typeof event.clientY === 'number' ? event.clientY : resize.startY) - resize.startY;
+        applyRect({ ...panelRectRef.current, width: resize.originWidth + dx, height: resize.originHeight + dy }, false);
+      };
+
+      /** Finish the resize and persist the final size. */
+      const endResize = (event) => {
+        const resize = resizeRef.current;
+        if (resize === null || resize === undefined) return;
+        resizeRef.current = null;
+        setResizing(false);
+        const node = event !== null && event !== undefined ? event.currentTarget : null;
+        if (node !== null && node !== undefined && typeof node.releasePointerCapture === 'function' && event.pointerId !== undefined) {
+          try {
+            node.releasePointerCapture(event.pointerId);
+          } catch (error) {
+            // already released
+          }
+        }
+        savePanelRect(panelRectRef.current);
+      };
+
+      /** Arrow keys on the focused resize handle change the card size. */
+      const onResizeKeyDown = (event) => {
+        const step = event.shiftKey === true ? KEYBOARD_STEP_LARGE : KEYBOARD_STEP;
+        let width = panelRectRef.current.width;
+        let height = panelRectRef.current.height;
+        if (event.key === 'ArrowLeft') width -= step;
+        else if (event.key === 'ArrowRight') width += step;
+        else if (event.key === 'ArrowUp') height -= step;
+        else if (event.key === 'ArrowDown') height += step;
+        else return;
+        event.preventDefault();
+        applyRect({ ...panelRectRef.current, width, height }, true);
+      };
+
+      // A viewport resize clamps the stored card back inside the window.
+      React.useEffect(() => {
+        const onViewportResize = () => {
+          const next = clampPanelRect(panelRectRef.current);
+          panelRectRef.current = next;
+          setPanelRect(next);
+          savePanelRect(next);
+        };
+        globalThis.addEventListener('resize', onViewportResize);
+        return () => globalThis.removeEventListener('resize', onViewportResize);
+      }, []);
+
+      // Escape steps back one level: full → compact → icon.
+      React.useEffect(() => {
+        if (mode === 'icon') return undefined;
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape' || event.defaultPrevented) return;
+          const root = rootRef.current;
+          const active = typeof document !== 'undefined' ? document.activeElement : null;
+          if (root === null || root === undefined || active === null || active === undefined) return;
+          if (typeof root.contains !== 'function' || root.contains(active) !== true) return;
+          event.preventDefault();
+          event.stopPropagation();
+          if (mode === 'full') collapseRef.current();
+          else enterIcon();
+        };
+        globalThis.addEventListener('keydown', onKeyDown);
+        return () => globalThis.removeEventListener('keydown', onKeyDown);
+      }, [mode]);
+
+      if (sessionId === undefined || sessionId === null) return null;
+
+      const bridgeReady = remoteReady(remote);
+      const status = view.status;
+      const phase = phaseOf(status);
+      const ready = status !== null && status !== undefined && status.ready === true;
+      const launching = phase === 'launching' || action === 'start';
+      const actionsDisabled = action !== undefined || !bridgeReady;
+      const canLaunch = !actionsDisabled && phase !== 'launching' && phase !== 'ready';
+      const canStop = !actionsDisabled && (phase === 'launching' || phase === 'ready');
+      const canReload = !actionsDisabled && ready && phase === 'ready';
+      const canRefresh = !actionsDisabled;
+
+      /**
+       * Launch the dev client: `start` returns `phase:'launching'` immediately, then exactly one
+       * `wait --timeout 180` call (no polling) reports the final status. The wait can be
+       * cancelled from the panel; the Host keeps launching either way.
+       */
+      const startGame = async () => {
+        const sid = sessionId;
+        // Synchronous guard: a double click in one tick must not append two command events.
+        if (actionRef.current !== undefined) return;
+        actionRef.current = 'start';
+        setError(undefined);
+        setNote(undefined);
+        const token = { cancelled: false };
+        cancelToken.current = token;
+        setAction('start');
+        try {
+          const startResult = await runCommand(sid, '/mcdev start --json');
+          if (token.cancelled) return;
+          const startStatus = statusOf(startResult.data);
+          if (startStatus !== undefined) {
+            commit(sid, (current) => ({ ...current, status: startStatus, statusError: undefined }));
+          }
+          if (startResult.kind === 'error') {
+            setError(messageOf(startResult, translate(t, 'commandFailed')));
+            return;
+          }
+          if (startStatus === undefined) {
+            setError(translate(t, 'badJson'));
+            return;
+          }
+          if (startStatus.phase === 'ready') {
+            void loadStatus(true);
+            return;
+          }
+          if (startStatus.phase === 'failed') {
+            setError(typeof startStatus.lastError === 'string' && startStatus.lastError !== '' ? startStatus.lastError : translate(t, 'commandFailed'));
+            return;
+          }
+          // One wait call covers up to ~3 minutes of launching; the elapsed timer runs meanwhile.
+          const waitResult = await runCommand(sid, '/mcdev wait --timeout ' + START_TIMEOUT_SECONDS + ' --json');
+          if (token.cancelled) return;
+          const waitStatus = statusOf(waitResult.data);
+          if (waitStatus !== undefined) {
+            commit(sid, (current) => ({ ...current, status: waitStatus, statusError: undefined }));
+          }
+          if (waitResult.kind === 'error') {
+            setError(messageOf(waitResult, translate(t, 'loadFailed')));
+            return;
+          }
+          if (waitStatus === undefined) {
+            setError(translate(t, 'badJson'));
+            return;
+          }
+          if (waitStatus.phase === 'failed') {
+            setError(typeof waitStatus.lastError === 'string' && waitStatus.lastError !== '' ? waitStatus.lastError : translate(t, 'commandFailed'));
+            return;
+          }
+          if (waitStatus.phase === 'ready') {
+            // Pick up the connected MCP details once, after the game is in a save.
+            void loadStatus(true);
+          } else {
+            flashNote(translate(t, 'waitTimedOut'));
+          }
+        } finally {
+          if (cancelToken.current === token) cancelToken.current = null;
+          if (actionRef.current === 'start') actionRef.current = undefined;
+          if (alive.current) setAction(undefined);
+        }
+      };
+
+      /** Stop waiting for the launch command; the start keeps running on the Host. */
+      const cancelStart = () => {
+        const token = cancelToken.current;
+        if (token !== null && token !== undefined) token.cancelled = true;
+        cancelToken.current = null;
+        actionRef.current = undefined;
+        setAction(undefined);
+        flashNote(translate(t, 'cancelled'));
+      };
+
+      /** Stop the running client. */
+      const stopGame = async () => {
+        const sid = sessionId;
+        if (actionRef.current !== undefined) return;
+        actionRef.current = 'stop';
+        setError(undefined);
+        setNote(undefined);
+        setAction('stop');
+        try {
+          const result = await runCommand(sid, '/mcdev stop --json');
+          const stopStatus = statusOf(result.data);
+          if (stopStatus !== undefined) {
+            commit(sid, (current) => ({ ...current, status: stopStatus, statusError: undefined }));
+          }
+          if (result.kind === 'error') setError(messageOf(result, translate(t, 'commandFailed')));
+          else if (stopStatus === undefined) setError(translate(t, 'badJson'));
+        } finally {
+          if (actionRef.current === 'stop') actionRef.current = undefined;
+          if (alive.current) setAction(undefined);
+        }
+      };
+
+      /** Reload game scripts, then refresh the snapshot once. */
+      const reloadGame = async () => {
+        const sid = sessionId;
+        if (actionRef.current !== undefined) return;
+        actionRef.current = 'reload';
+        setError(undefined);
+        setNote(undefined);
+        setAction('reload');
+        try {
+          const result = await runCommand(sid, '/mcdev reload --json');
+          const data = result.data;
+          if (result.kind === 'error') {
+            setError(messageOf(result, translate(t, 'commandFailed')));
+          } else if (data !== undefined && data.ok === false) {
+            setError(typeof data.error === 'string' && data.error !== '' ? data.error : translate(t, 'commandFailed'));
+          } else {
+            flashNote(translate(t, 'reloadOk'));
+          }
+          if (data !== undefined && data.logs !== undefined && Array.isArray(data.logs.lines)) {
+            commit(sid, (current) => ({ ...current, logs: { ...current.logs, launcher: mergeLogs(current.logs.launcher, data.logs) } }));
+          }
+          if (data !== undefined && data.gameLogs !== undefined && Array.isArray(data.gameLogs.lines)) {
+            const gameLines = normalizeLines(data.gameLogs);
+            commit(sid, (current) => ({
+              ...current,
+              logs: { ...current.logs, game: { ...current.logs.game, lines: gameLines, error: undefined, loaded: true } },
+            }));
+          }
+          void loadStatus(true);
+        } finally {
+          if (actionRef.current === 'reload') actionRef.current = undefined;
+          if (alive.current) setAction(undefined);
+        }
+      };
+
+      /** Force one status read (the only path that repeats it for the same session). */
+      const refreshStatus = async () => {
+        if (actionRef.current !== undefined) return;
+        actionRef.current = 'refresh';
+        setError(undefined);
+        setNote(undefined);
+        setAction('refresh');
+        try {
+          await loadStatus(true);
+        } finally {
+          if (actionRef.current === 'refresh') actionRef.current = undefined;
+          if (alive.current) setAction(undefined);
+        }
+      };
+
+      /**
+       * Read one log source.
+       *
+       * `launcher` is the official game log with an incremental cursor: the first read is the
+       * latest window, `newer` continues after `next`. `game` is the in-game ModSDK/engine log
+       * (`/mcdev game-logs`): no cursor, every read replaces the window with the latest lines.
+       */
+      const loadLogs = async (source, mode) => {
+        const sid = sessionId;
+        if (!remoteReady(remoteRef.current)) return;
+        const kind = source === 'game' ? 'game' : 'launcher';
+        const key = sid + '|logs|' + kind;
+        if (loads.has(key)) {
+          await loads.get(key);
+          return;
+        }
+        const task = (async () => {
+          setLogBusy(true);
+          try {
+            const logs = viewOf(sid).logs;
+            if (kind === 'game') {
+              const errorsOnly = logs.game.errorsOnly === true;
+              const command = '/mcdev game-logs --limit ' + LOG_LIMIT + (errorsOnly ? ' --errors' : '') + ' --json';
+              const result = await runCommand(sid, command);
+              const data = result.data;
+              if (data !== undefined && data.ok === false) {
+                const message = typeof data.error === 'string' && data.error !== '' ? data.error : translate(t, 'commandFailed');
+                commit(sid, (snapshot) => ({
+                  ...snapshot,
+                  logs: { ...snapshot.logs, game: { ...snapshot.logs.game, lines: [], error: message, loaded: true } },
+                }));
+                return;
+              }
+              if (result.kind === 'error' || data === undefined || !Array.isArray(data.lines)) {
+                const message = messageOf(result, translate(t, 'commandFailed'));
+                commit(sid, (snapshot) => ({
+                  ...snapshot,
+                  logs: { ...snapshot.logs, game: { ...snapshot.logs.game, lines: [], error: message, loaded: true } },
+                }));
+                return;
+              }
+              const gameLines = normalizeLines(data);
+              commit(sid, (snapshot) => ({
+                ...snapshot,
+                logs: { ...snapshot.logs, game: { ...snapshot.logs.game, lines: gameLines, error: undefined, loaded: true } },
+              }));
+              return;
+            }
+            const launcher = logs.launcher;
+            let command;
+            if (mode === 'newer') {
+              const next = intOf(launcher.next);
+              if (next === undefined) {
+                flashNote(translate(t, 'noNewer'));
+                return;
+              }
+              command = '/mcdev logs --since ' + next + ' --limit ' + LOG_LIMIT + ' --json';
+            } else {
+              command = '/mcdev logs --limit ' + LOG_LIMIT + ' --json';
+            }
+            const result = await runCommand(sid, command);
+            const data = logDataOf(result.data);
+            if (result.kind === 'error' || data === undefined || !Array.isArray(data.lines)) {
+              const message = messageOf(result, translate(t, 'commandFailed'));
+              commit(sid, (snapshot) => ({
+                ...snapshot,
+                logs: { ...snapshot.logs, launcher: { ...snapshot.logs.launcher, error: message } },
+              }));
+              return;
+            }
+            if (mode === 'newer' && Array.isArray(data.lines) && data.lines.length === 0) {
+              flashNote(translate(t, 'noNewer'));
+            }
+            const nextLauncher = mode === 'newer' ? mergeLogs(launcher, data) : mergeLogs(undefined, data);
+            commit(sid, (snapshot) => ({
+              ...snapshot,
+              logs: { ...snapshot.logs, launcher: { ...nextLauncher, error: undefined } },
+            }));
+          } finally {
+            if (alive.current) setLogBusy(false);
+          }
+        })();
+        loads.set(key, task);
+        try {
+          await task;
+        } finally {
+          loads.delete(key);
+        }
+      };
+
+      // Opening the console is a user action: re-read the status once so a game that was
+      // started/stopped outside this panel (another session, a crash) is reflected.
+      React.useEffect(() => {
+        if (!expanded) return undefined;
+        const sid = sessionId;
+        if (sid === undefined || sid === null) return undefined;
+        void loadStatus(true);
+        return undefined;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [expanded, sessionId]);
+
+      // Opening the log tab (or switching its source) is the user action that reads a window.
+      React.useEffect(() => {
+        if (!expanded || tab !== 'logs') return undefined;
+        const sid = sessionId;
+        if (sid === undefined || sid === null) return undefined;
+        const logs = viewOf(sid).logs;
+        if (logSource === 'game') {
+          if (!logs.game.loaded) void loadLogs('game', 'initial');
+        } else if (!logs.launcher.loaded) {
+          void loadLogs('launcher', 'initial');
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [expanded, tab, logSource, sessionId]);
+
+      /** Run one Python snippet through `/mcdev exec --json`. */
+      const runCode = async () => {
+        const sid = sessionId;
+        const exec = viewOf(sid).exec;
+        if (typeof exec.code !== 'string' || exec.code.trim() === '') return;
+        const side = exec.side === 'server' ? 'server' : 'client';
+        setExecBusy(true);
+        commit(sid, (current) => ({ ...current, exec: { ...current.exec, ran: false, error: undefined } }));
+        try {
+          const result = await runCommand(sid, '/mcdev exec --side ' + side + ' --code-b64=' + encodeArg(exec.code) + ' --json');
+          const data = result.data;
+          let text = '';
+          if (data !== undefined) {
+            const shown = {};
+            if (data.ok !== undefined) shown.ok = data.ok;
+            if (data.returnValue !== undefined) shown.returnValue = data.returnValue;
+            if (data.error !== undefined) shown.error = data.error;
+            if (Object.keys(shown).length === 0) shown.raw = data;
+            try {
+              text = clipText(JSON.stringify(shown, null, 2), TEXT_LIMIT);
+            } catch (caught) {
+              text = clipText(result.text, TEXT_LIMIT);
+            }
+          } else {
+            text = clipText(result.text, TEXT_LIMIT);
+          }
+          let message;
+          if (result.kind === 'error') message = messageOf(result, translate(t, 'commandFailed'));
+          else if (data !== undefined && data.ok === false) message = typeof data.error === 'string' && data.error !== '' ? data.error : translate(t, 'commandFailed');
+          const gameLines = data !== undefined && data.gameLogs !== undefined ? normalizeLines(data.gameLogs).slice(-20) : [];
+          commit(sid, (current) => ({ ...current, exec: { ...current.exec, text, ran: true, error: message, gameLines } }));
+        } finally {
+          if (alive.current) setExecBusy(false);
+        }
+      };
+
+      /** Search the bundled docs. */
+      const searchDocs = async () => {
+        const sid = sessionId;
+        const query = viewOf(sid).docs.query;
+        if (typeof query !== 'string' || query.trim() === '') return;
+        setDocsBusy(true);
+        commit(sid, (current) => ({ ...current, docs: { ...current.docs, error: undefined, searched: false } }));
+        try {
+          const result = await runCommand(sid, '/mcdev docs --query-b64=' + encodeArg(query.trim()) + ' --limit ' + DOC_LIMIT + ' --json');
+          const data = result.data;
+          const hits = data !== undefined && Array.isArray(data.hits) ? data.hits.filter((hit) => hit !== null && typeof hit === 'object' && typeof hit.path === 'string') : [];
+          if (result.kind === 'error' || (data === undefined && result.text !== '')) {
+            const message = messageOf(result, translate(t, 'commandFailed'));
+            commit(sid, (current) => ({ ...current, docs: { ...current.docs, hits: [], searched: true, error: message, path: undefined, text: '', more: false, total: 0 } }));
+            return;
+          }
+          commit(sid, (current) => ({
+            ...current,
+            docs: { ...current.docs, hits, searched: true, error: undefined, path: undefined, title: '', text: '', total: 0, more: false },
+          }));
+        } finally {
+          if (alive.current) setDocsBusy(false);
+        }
+      };
+
+      /** Read one document (or the next slice of it) through `/mcdev read --json`. */
+      const readDoc = async (path, offset) => {
+        const sid = sessionId;
+        const docs = viewOf(sid).docs;
+        const target = typeof path === 'string' && path !== '' ? path : docs.path;
+        if (typeof target !== 'string' || target === '') return;
+        const start = Math.max(0, intOf(offset) === undefined ? 0 : intOf(offset));
+        setReadBusy(true);
+        commit(sid, (current) => ({ ...current, docs: { ...current.docs, error: undefined } }));
+        try {
+          const result = await runCommand(sid, '/mcdev read --path-b64=' + encodeArg(target) + ' --offset ' + start + ' --json');
+          const data = result.data;
+          if (result.kind === 'error' || data === undefined || typeof data.text !== 'string') {
+            const message = messageOf(result, translate(t, 'docReadFailed'));
+            commit(sid, (current) => ({ ...current, docs: { ...current.docs, error: message } }));
+            return;
+          }
+          const append = start > 0;
+          const text = append ? docs.text + data.text : data.text;
+          const total = typeof data.total === 'number' ? data.total : text.length;
+          commit(sid, (current) => ({
+            ...current,
+            docs: {
+              ...current.docs,
+              path: typeof data.path === 'string' && data.path !== '' ? data.path : target,
+              title: typeof data.title === 'string' ? data.title : '',
+              text: clipText(text, TEXT_LIMIT * 3),
+              total,
+              more: data.more === true,
+              error: undefined,
+            },
+          }));
+        } finally {
+          if (alive.current) setReadBusy(false);
+        }
+      };
+
+      /** Copy one value, reporting success only; a clipboard failure stays silent. */
+      const copyValue = (text) => {
+        void writeClipboard(typeof text === 'string' ? text : '').then((ok) => {
+          if (ok === true && alive.current) flashNote(translate(t, 'copied'));
+        });
+      };
+
+      const tabs = [
+        { id: 'logs', label: 'logs', icon: 'console' },
+        { id: 'exec', label: 'exec', icon: 'terminal' },
+        { id: 'docs', label: 'docs', icon: 'book' },
+      ];
+
+      /** Arrow-key navigation across the tab list. */
+      const onTabKeyDown = (event, index) => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        const delta = event.key === 'ArrowRight' ? 1 : -1;
+        const nextIndex = (index + delta + tabs.length) % tabs.length;
+        setTab(tabs[nextIndex].id);
+        const list = event.currentTarget.parentElement;
+        if (list !== null && list !== undefined && typeof list.querySelectorAll === 'function') {
+          const nodes = list.querySelectorAll('[role="tab"]');
+          if (nodes[nextIndex] !== undefined && typeof nodes[nextIndex].focus === 'function') nodes[nextIndex].focus();
+        }
+      };
+
+      const statusTitle = status !== null && status !== undefined
+        ? [typeof status.projectDir === 'string' ? status.projectDir : '', typeof status.lastError === 'string' ? status.lastError : '']
+            .filter((item) => item !== '')
+            .join('\n')
+        : '';
+
+      const busyAction = action !== undefined;
+
+      const headPhase = action === 'start' ? 'launching' : phase;
+
+      // One start/stop control: filled play when stopped, filled stop when running,
+      // filled close while the launch is still waiting for the world (cancels the wait).
+      const toggleAction = (() => {
+        if (action === 'start') {
+          return { key: 'toggle', icon: 'close', label: translate(t, 'cancel'), variant: 'filled', onClick: cancelStart };
+        }
+        if (phase === 'ready' || phase === 'launching') {
+          return {
+            key: 'toggle',
+            icon: 'stop',
+            label: translate(t, 'stop'),
+            variant: 'filled',
+            disabled: !canStop,
+            onClick: () => void stopGame(),
+          };
+        }
+        return {
+          key: 'toggle',
+          icon: 'play',
+          label: translate(t, 'launch'),
+          variant: 'filled',
+          disabled: !canLaunch,
+          onClick: () => void startGame(),
+        };
+      })();
+
+      const primaryActions = [
+        h(IconButton, toggleAction),
+        h(IconButton, {
+          key: 'refresh',
+          icon: 'refresh',
+          label: translate(t, 'refresh'),
+          busy: action === 'refresh',
+          disabled: !canRefresh,
+          onClick: () => void refreshStatus(),
+        }),
+        h(IconButton, {
+          key: 'reload',
+          icon: 'reload',
+          label: translate(t, 'reload'),
+          busy: action === 'reload',
+          disabled: !canReload,
+          onClick: () => void reloadGame(),
+        }),
+      ];
+
+      /** The single Minecraft icon doubles as the "back to icon mode" control. */
+      const logoButton = (key) =>
+        h(
+          'button',
+          {
+            key: key || 'logo',
+            type: 'button',
+            className: 'mcd-logo mcd-logo-btn',
+            'data-mcd-no-drag': 'true',
+            title: translate(t, 'toIcon'),
+            'aria-label': translate(t, 'toIcon'),
+            onClick: enterIcon,
+          },
+          h(Icon, { name: 'minecraft' }),
+        );
+
+      /** Icon mode: the icon asks for compact; drag suppression keeps a real drag from switching. */
+      const onFabClick = () => {
+        if (suppressClickRef.current === true) {
+          suppressClickRef.current = false;
+          return;
+        }
+        enterCompact();
+      };
+
+      const onFabKeyDown = (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          enterCompact();
+        }
+      };
+
+      const dragHandle = h('div', {
+        className: 'mcd-drag-handle',
+        key: 'handle',
+        tabIndex: 0,
+        role: 'button',
+        'aria-label': translate(t, 'movePanel'),
+        title: translate(t, 'movePanel'),
+        onPointerDown: beginDrag,
+        onPointerMove: moveDrag,
+        onPointerUp: endDrag,
+        onPointerCancel: endDrag,
+        onKeyDown: onGripKeyDown,
+      });
+
+      const header = h(
+        'div',
+        {
+          className: 'mcd-head',
+          key: 'head',
+          onPointerDown: beginDrag,
+          onPointerMove: moveDrag,
+          onPointerUp: endDrag,
+          onPointerCancel: endDrag,
+        },
+        logoButton('logo'),
+        h(
+          'div',
+          { className: 'mcd-head-text', key: 'text' },
+          h('span', { className: 'mcd-title' }, translate(t, 'title')),
+          h(
+            'span',
+            { className: 'mcd-subtitle', title: statusTitle },
+            h('span', { className: 'mcd-status-dot', 'data-phase': headPhase }),
+            translate(t, PHASE_KEY[headPhase]),
+          ),
+        ),
+        h('div', { className: 'mcd-actions', key: 'actions' },
+          h(IconButton, { key: 'compact', icon: 'collapse', label: translate(t, 'collapse'), onClick: collapsePanel }),
+        ),
+      );
+
+      const progress = launching
+        ? h(
+            'div',
+            { className: 'mcd-progress', key: 'progress' },
+            h('div', { className: 'mcd-linear', 'aria-hidden': 'true' }),
+            h(
+              'span',
+              { className: 'mcd-progress-text' },
+              translate(t, 'starting') + (action === 'start' ? ' · ' + translate(t, 'waited', { seconds: elapsed }) : ''),
+            ),
+            action === 'start'
+              ? h(IconButton, { key: 'cancel', icon: 'close', label: translate(t, 'cancel'), onClick: cancelStart })
+              : null,
+          )
+        : null;
+
+      const idleHint = phase === 'idle' && !busyAction ? h('p', { className: 'mcd-hint', key: 'idle' }, translate(t, 'idleHint')) : null;
+      const notReadyHint = !launching && phase !== 'idle' && !ready ? h('p', { className: 'mcd-hint', key: 'notready' }, translate(t, 'notReadyHint')) : null;
+      const statusError = view.statusError !== undefined && view.statusError !== '' && error === undefined
+        ? h('p', { className: 'mcd-error', key: 'status-error', role: 'alert' }, view.statusError)
+        : null;
+      const failureLine = phase === 'failed' &&
+        status !== null &&
+        status !== undefined &&
+        typeof status.lastError === 'string' &&
+        status.lastError !== '' &&
+        error === undefined
+        ? h('p', { className: 'mcd-error', key: 'failure', role: 'alert' }, status.lastError)
+        : null;
+      const errorLine = error !== undefined ? h('p', { className: 'mcd-error', key: 'error', role: 'alert' }, error) : null;
+      const noteLine = note !== undefined ? h('p', { className: 'mcd-note', key: 'note' }, note) : null;
+
+      const tabBar = expanded
+        ? h(
+            'div',
+            { className: 'mcd-tabs', role: 'tablist', 'aria-label': translate(t, 'title'), key: 'tabs' },
+            tabs.map((entry, index) =>
+              h(
+                'button',
+                {
+                  key: entry.id,
+                  type: 'button',
+                  role: 'tab',
+                  className: 'mcd-tab',
+                  'data-on': tab === entry.id ? 'true' : 'false',
+                  'aria-selected': tab === entry.id ? 'true' : 'false',
+                  tabIndex: tab === entry.id ? 0 : -1,
+                  'aria-label': translate(t, entry.label),
+                  title: translate(t, entry.label),
+                  onClick: () => setTab(entry.id),
+                  onKeyDown: (event) => onTabKeyDown(event, index),
+                },
+                h(Icon, { name: entry.icon }),
+              ),
+            ),
+          )
+        : null;
+
+      let content = null;
+      if (expanded && tab === 'logs') {
+        const logs = view.logs;
+        const launcher = logs.launcher;
+        const game = logs.game;
+        const launcherLines = Array.isArray(launcher.lines) ? launcher.lines : [];
+        const gameLines = Array.isArray(game.lines) ? game.lines : [];
+        const next = intOf(launcher.next);
+        const showGame = logSource === 'game';
+        const launcherError = typeof launcher.error === 'string' && launcher.error !== '';
+        const gameError = typeof game.error === 'string' && game.error !== '';
+        content = h(
+          'div',
+          { className: 'mcd-panel', role: 'tabpanel', key: 'panel-logs' },
+          h(
+            'div',
+            { className: 'mcd-row', key: 'toolbar' },
+            h(
+              'div',
+              { className: 'mcd-seg', role: 'group', 'aria-label': translate(t, 'logs') },
+              h(IconButton, {
+                key: 'launcher',
+                icon: 'description',
+                label: translate(t, 'logLauncher'),
+                pressed: !showGame,
+                onClick: () => setLogSource('launcher'),
+              }),
+              h(IconButton, {
+                key: 'game',
+                icon: 'gamepad',
+                label: translate(t, 'logGame'),
+                pressed: showGame,
+                onClick: () => setLogSource('game'),
+              }),
+            ),
+            showGame
+              ? h(IconButton, {
+                  key: 'refresh',
+                  icon: 'refresh',
+                  label: translate(t, 'refresh'),
+                  busy: logBusy,
+                  disabled: logBusy,
+                  onClick: () => void loadLogs('game', 'initial'),
+                })
+              : h(IconButton, {
+                  key: 'newer',
+                  icon: 'newer',
+                  label: translate(t, 'loadNewer'),
+                  busy: logBusy,
+                  disabled: logBusy || !launcher.loaded,
+                  onClick: () => void loadLogs('launcher', 'newer'),
+                }),
+            showGame
+              ? h(IconButton, {
+                  key: 'errors',
+                  icon: 'filter',
+                  label: translate(t, 'onlyErrors'),
+                  pressed: game.errorsOnly === true,
+                  disabled: logBusy,
+                  onClick: () => {
+                    const errorsOnly = !(game.errorsOnly === true);
+                    commit(sessionId, (current) => ({ ...current, logs: { ...current.logs, game: { ...current.logs.game, errorsOnly } } }));
+                    void loadLogs('game', 'initial');
+                  },
+                })
+              : null,
+            logBusy ? h('span', { key: 'busy', className: 'mcd-meta' }, translate(t, 'busy')) : null,
+            (showGame ? gameLines.length : launcherLines.length) > 0
+              ? h('span', { key: 'count', className: 'mcd-meta' }, translate(t, 'logCount', { count: showGame ? gameLines.length : launcherLines.length }))
+              : null,
+            !showGame && next !== undefined ? h('span', { key: 'next', className: 'mcd-meta' }, translate(t, 'nextCursor', { cursor: next })) : null,
+          ),
+          showGame
+            ? gameError
+              ? h('p', { className: 'mcd-error', key: 'game-error', role: 'alert' }, game.error)
+              : gameLines.length === 0
+                ? h('p', { className: 'mcd-empty', key: 'game-empty' }, translate(t, game.loaded ? 'gameLogsEmpty' : 'busy'))
+                : h(LogLines, { key: 'game-lines', lines: gameLines, highlightErrors: true, label: translate(t, 'logGame') })
+            : launcherError
+              ? h('p', { className: 'mcd-error', key: 'launcher-error', role: 'alert' }, launcher.error)
+              : launcherLines.length === 0
+                ? h('p', { className: 'mcd-empty', key: 'empty' }, translate(t, launcher.loaded ? 'logsEmpty' : 'busy'))
+                : h(LogLines, { key: 'lines', lines: launcherLines, highlightErrors: false, label: translate(t, 'logLauncher') }),
+        );
+      } else if (expanded && tab === 'exec') {
+        const exec = view.exec;
+        content = h(
+          'div',
+          { className: 'mcd-panel', role: 'tabpanel', key: 'panel-exec' },
+          h('textarea', {
+            key: 'code',
+            className: 'mcd-input mcd-code',
+            rows: 5,
+            value: exec.code,
+            spellCheck: false,
+            placeholder: translate(t, 'execPlaceholder'),
+            'aria-label': translate(t, 'exec'),
+            onChange: (event) => {
+              const value = event.target.value;
+              commit(sessionId, (current) => ({ ...current, exec: { ...current.exec, code: value } }));
+            },
+            onKeyDown: (event) => {
+              if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                event.preventDefault();
+                void runCode();
+              }
+            },
+          }),
+          h(
+            'div',
+            { className: 'mcd-row' },
+            h('span', { className: 'mcd-meta' }, translate(t, 'side')),
+            h(
+              'div',
+              { className: 'mcd-seg', role: 'group', 'aria-label': translate(t, 'side') },
+              ['client', 'server'].map((side) =>
+                h(IconButton, {
+                  key: side,
+                  icon: side,
+                  label: translate(t, side),
+                  pressed: exec.side === side,
+                  onClick: () => commit(sessionId, (current) => ({ ...current, exec: { ...current.exec, side } })),
+                }),
+              ),
+            ),
+            h(IconButton, {
+              key: 'run',
+              icon: 'play',
+              label: translate(t, 'run'),
+              variant: 'filled',
+              busy: execBusy,
+              disabled: execBusy || typeof exec.code !== 'string' || exec.code.trim() === '',
+              onClick: () => void runCode(),
+            }),
+            h('span', { key: 'hint', className: 'mcd-meta' }, translate(t, 'execHint')),
+          ),
+          exec.error !== undefined && exec.error !== '' ? h('p', { className: 'mcd-error', key: 'exec-error', role: 'alert' }, exec.error) : null,
+          exec.ran
+            ? h(
+                'div',
+                { className: 'mcd-doc', key: 'result' },
+                h(
+                  'div',
+                  { className: 'mcd-row' },
+                  h('span', { className: 'mcd-meta' }, translate(t, 'execResult')),
+                  h(IconButton, { key: 'copy', icon: 'copy', label: translate(t, 'copy'), onClick: () => copyValue(exec.text) }),
+                ),
+                h('pre', { className: 'mcd-pre', tabIndex: 0, 'aria-label': translate(t, 'execResult') }, exec.text),
+                Array.isArray(exec.gameLines) && exec.gameLines.length > 0
+                  ? h(
+                      'div',
+                      { className: 'mcd-doc', key: 'game-logs' },
+                      h('div', { className: 'mcd-row' }, h('span', { className: 'mcd-meta' }, translate(t, 'gameLogs'))),
+                      h(LogLines, { lines: exec.gameLines, highlightErrors: true, label: translate(t, 'gameLogs') }),
+                    )
+                  : null,
+              )
+            : null,
+        );
+      } else if (expanded && tab === 'docs') {
+        const docs = view.docs;
+        content = h(
+          'div',
+          { className: 'mcd-panel', role: 'tabpanel', key: 'panel-docs' },
+          h(
+            'div',
+            { className: 'mcd-row' },
+            h('input', {
+              key: 'query',
+              type: 'search',
+              className: 'mcd-input mcd-search',
+              value: docs.query,
+              placeholder: translate(t, 'docsPlaceholder'),
+              'aria-label': translate(t, 'docs'),
+              onChange: (event) => {
+                const value = event.target.value;
+                commit(sessionId, (current) => ({ ...current, docs: { ...current.docs, query: value } }));
+              },
+              onKeyDown: (event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void searchDocs();
+                }
+              },
+            }),
+            h(IconButton, {
+              key: 'search',
+              icon: 'search',
+              label: translate(t, 'search'),
+              variant: 'filled',
+              busy: docsBusy,
+              disabled: docsBusy || docs.query.trim() === '',
+              onClick: () => void searchDocs(),
+            }),
+          ),
+          docs.error !== undefined && docs.error !== '' ? h('p', { className: 'mcd-error', key: 'docs-error', role: 'alert' }, docs.error) : null,
+          Array.isArray(docs.hits) && docs.hits.length > 0
+            ? h(
+                'ul',
+                { className: 'mcd-hits', key: 'hits' },
+                docs.hits.map((hit, index) =>
+                  h(
+                    'li',
+                    { key: typeof hit.path === 'string' ? hit.path : 'hit-' + index },
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        className: 'mcd-hit',
+                        'data-on': docs.path === hit.path ? 'true' : 'false',
+                        title: typeof hit.snippet === 'string' ? hit.snippet : hit.path,
+                        onClick: () => void readDoc(hit.path, 0),
+                      },
+                      h('span', { className: 'mcd-hit-title' }, typeof hit.title === 'string' && hit.title !== '' ? hit.title : hit.path),
+                      h('span', { className: 'mcd-hit-path' }, hit.path),
+                      typeof hit.snippet === 'string' && hit.snippet !== '' ? h('span', { className: 'mcd-hit-snippet' }, hit.snippet) : null,
+                    ),
+                  ),
+                ),
+              )
+            : docs.searched
+              ? h('p', { className: 'mcd-empty', key: 'no-docs' }, translate(t, 'noDocs'))
+              : null,
+          typeof docs.path === 'string' && docs.path !== ''
+            ? h(
+                'div',
+                { className: 'mcd-doc', key: 'doc' },
+                h(
+                  'div',
+                  { className: 'mcd-row' },
+                  h('span', { className: 'mcd-doc-path', title: docs.path }, typeof docs.title === 'string' && docs.title !== '' ? docs.title + ' · ' + docs.path : docs.path),
+                  h('span', { className: 'mcd-meta' }, translate(t, 'docChars', { shown: typeof docs.text === 'string' ? docs.text.length : 0, total: typeof docs.total === 'number' && docs.total > 0 ? docs.total : typeof docs.text === 'string' ? docs.text.length : 0 })),
+                  h(IconButton, { key: 'copy', icon: 'copy', label: translate(t, 'copy'), onClick: () => copyValue(docs.text) }),
+                  docs.more
+                    ? h(IconButton, {
+                        key: 'more',
+                        icon: 'newer',
+                        label: translate(t, 'docLoadMore'),
+                        busy: readBusy,
+                        disabled: readBusy,
+                        onClick: () => void readDoc(docs.path, typeof docs.text === 'string' ? docs.text.length : 0),
+                      })
+                    : null,
+                ),
+                h('pre', { className: 'mcd-pre', tabIndex: 0, 'aria-label': docs.path }, typeof docs.text === 'string' && docs.text !== '' ? docs.text : translate(t, 'logsEmpty')),
+                docs.more ? h('p', { className: 'mcd-hint' }, translate(t, 'docTruncated')) : null,
+              )
+            : null,
+        );
+      }
+
+      if (mode === 'icon') {
+        return h(
+          'div',
+          {
+            className: 'mcd-root',
+            ref: rootRef,
+            key: 'mcd-window',
+            style: {
+              left: panelRect.x + 'px',
+              top: panelRect.y + 'px',
+              width: FAB_SIZE + 'px',
+              height: FAB_SIZE + 'px',
+            },
+            tabIndex: 0,
+            role: 'button',
+            'data-mode': 'icon',
+            'data-dragging': dragging ? 'true' : 'false',
+            'aria-label': translate(t, 'openPanel') + ' · ' + translate(t, PHASE_KEY[headPhase]),
+            title: translate(t, 'openPanel') + (statusTitle !== '' ? '\n' + statusTitle : ''),
+            onPointerDown: beginDrag,
+            onPointerMove: moveDrag,
+            onPointerUp: endDrag,
+            onPointerCancel: endDrag,
+            onClick: onFabClick,
+            onKeyDown: onFabKeyDown,
+          },
+          h('style', { key: 'mcd-css' }, PANEL_CSS),
+          h('span', { className: 'mcd-fab', key: 'fab', 'aria-hidden': 'true' }, h(Icon, { name: 'minecraft' })),
+          h('span', { className: 'mcd-fab-badge', key: 'badge', 'data-phase': headPhase, 'aria-hidden': 'true' }),
+        );
+      }
+
+      if (compact) {
+        return h(
+          'div',
+          {
+            className: 'mcd-root',
+            ref: rootRef,
+            key: 'mcd-window',
+            style: {
+              left: panelRect.x + 'px',
+              top: panelRect.y + 'px',
+              width: COMPACT_WIDTH + 'px',
+              height: 'auto',
+            },
+            tabIndex: 0,
+            'data-mode': 'compact',
+            'data-dragging': dragging ? 'true' : 'false',
+            'aria-label': translate(t, 'title'),
+            onKeyDown: (event) => {
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                enterIcon();
+              }
+            },
+          },
+          h('style', { key: 'mcd-css' }, PANEL_CSS),
+          h(
+            'div',
+            { className: 'mcd-compact', key: 'compact' },
+            h(
+              'div',
+              {
+                className: 'mcd-head',
+                key: 'head',
+                onPointerDown: beginDrag,
+                onPointerMove: moveDrag,
+                onPointerUp: endDrag,
+                onPointerCancel: endDrag,
+              },
+              logoButton('logo'),
+              h(
+                'div',
+                { className: 'mcd-head-text', key: 'text' },
+                h('span', { className: 'mcd-title' }, translate(t, 'title')),
+                h(
+                  'span',
+                  { className: 'mcd-subtitle', title: statusTitle },
+                  h('span', { className: 'mcd-status-dot', 'data-phase': headPhase }),
+                  translate(t, PHASE_KEY[headPhase]),
+                ),
+              ),
+              h(
+                'div',
+                { key: 'expand', style: { marginLeft: 'auto', display: 'flex', alignItems: 'center' } },
+                h(IconButton, { icon: 'openFull', label: translate(t, 'expand'), onClick: expandPanel }),
+              ),
+            ),
+            h('div', { className: 'mcd-actions-row', key: 'actions' }, primaryActions),
+          ),
+        );
+      }
+
+      return h(
+        'div',
+        {
+          className: 'mcd-root',
+          ref: rootRef,
+          key: 'mcd-window',
+          style: {
+            left: panelRect.x + 'px',
+            top: panelRect.y + 'px',
+            width: panelRect.width + 'px',
+            height: panelRect.height + 'px',
+          },
+          tabIndex: -1,
+          'data-mode': 'full',
+          'data-dragging': dragging ? 'true' : 'false',
+          'data-resizing': resizing ? 'true' : 'false',
+          'aria-label': translate(t, 'title'),
+          onKeyDown: (event) => {
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              collapsePanel();
+            }
+          },
+        },
+        h('style', { key: 'mcd-css' }, PANEL_CSS),
+        h(
+          'div',
+          { className: 'mcd-sheet', key: 'sheet' },
+          dragHandle,
+          header,
+          h(
+            'div',
+            { className: 'mcd-body', key: 'body' },
+            h('div', { className: 'mcd-actions-row', key: 'actions' }, primaryActions),
+            bridgeReady ? null : h('p', { className: 'mcd-hint', key: 'bridge' }, translate(t, 'remoteUnavailable')),
+            progress,
+            idleHint,
+            notReadyHint,
+            statusError,
+            failureLine,
+            errorLine,
+            noteLine,
+            tabBar,
+            content,
+          ),
+          h('div', {
+            key: 'resize',
+            className: 'mcd-resize',
+            role: 'separator',
+            tabIndex: 0,
+            'aria-label': translate(t, 'resizePanel'),
+            title: translate(t, 'resizePanel'),
+            onPointerDown: beginResize,
+            onPointerMove: moveResize,
+            onPointerUp: endResize,
+            onPointerCancel: endResize,
+            onKeyDown: onResizeKeyDown,
+          }),
+        ),
+      );
+    }
+
+    /**
+     * The root `useSessions` selector hook is the documented way to learn which Session the
+     * main view retains: `shell.overlay` entries receive no `sessionId` prop. This wrapper
+     * always calls the hook unconditionally and hands the resolved id to the panel.
+     */
+    function McDevOverlayWithSessions(props) {
+      const sessionId = props.useSessions(selectMainSession);
+      return h(McDevBoundary, null, h(McDevPanel, { ...props, sessionId }));
+    }
+
+    /** Composition without the sessions hook: no Session can be resolved, so nothing renders. */
+    function McDevOverlayNoSessions(props) {
+      return h(McDevBoundary, null, h(McDevPanel, { ...props, sessionId: undefined }));
+    }
+
+    return {
+      // Remote namespaces are injected property paths: declare `remote.commands` before
+      // reading it. The locale service owns the panel dictionaries.
+      inject: ['locale', 'remote', 'remote.commands', 'slots'],
+      apply(ctx) {
+        try {
+          for (const node of globalThis.document.querySelectorAll('div')) {
+            if (node.textContent === 'MCDEV-LOADED') node.remove();
+          }
+        } catch (error) {
+          // one-off cleanup of an earlier debug marker
+        }
+        ctx.effect(
+          () => {
+            try {
+              return ctx.locale.register(NS, { en, zh });
+            } catch (error) {
+              // A duplicate namespace must not break the panel; t() then falls back to keys.
+              return undefined;
+            }
+          },
+          'dsh-mcdev: panel locale',
+        );
+        const t = ctx.locale.bind(NS);
+        BOOT_SEQ += 1;
+        const bootKey = BOOT_SEQ;
+        ctx.effect(
+          () =>
+            ctx.slots.inject(SLOT, () =>
+              ctx.slots.register(
+                { name: SLOT, id: ENTRY_ID, order: ENTRY_ORDER, locale: NS },
+                (props) =>
+                  typeof props.useSessions === 'function'
+                    ? h(McDevOverlayWithSessions, { ...props, remote: ctx.remote, t, bootKey })
+                    : h(McDevOverlayNoSessions, { ...props, remote: ctx.remote, t, bootKey }),
+              ),
+            ),
+          'dsh-mcdev: floating console',
+        );
+      },
+    };
+  },
+});

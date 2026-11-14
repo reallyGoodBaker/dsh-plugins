@@ -1,0 +1,8 @@
+# dsh-checkpoint bundle patch: one Host row, no browser half.
+- insert:
+    - id: dsh-checkpoint
+      name: '@local/dsh-checkpoint'
+      config:
+        autoCommit: true
+        commitMessage: 'checkpoint {id}: {note}'
+        keepBaselineByDefault: false
