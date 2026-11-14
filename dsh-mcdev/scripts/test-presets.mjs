@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Tests for launch presets: game path + host world/packs/skin + guests.
- * Presets are self-contained; .mcdev.json is never consulted.
+ * Presets are self-contained.
  *
  *   node scripts/test-presets.mjs
  */
@@ -115,7 +115,7 @@ function makeProject() {
   console.log('ok 5 - defaultPreset carries the discovered world/skin/game path')
 }
 
-// 6) resolveHostLaunch is explicit-only: no .mcdev.json fallback
+// 6) resolveHostLaunch is explicit-only
 {
   const explicit = resolveHostLaunch(
     normalizePreset({ host: { world: 'P_WORLD', skin: 'C:/p.png', slim: true, playerName: 'P_User' } }),
@@ -130,7 +130,7 @@ function makeProject() {
   assert.equal(empty.slim, false)
   assert.equal(empty.playerName, 'developer')
   assert.equal(empty.behaviorPacks, null)
-  console.log('ok 6 - resolveHostLaunch never reads .mcdev.json')
+  console.log('ok 6 - resolveHostLaunch is explicit-only')
 }
 
 // 7) activeId fallback when the stored id is unknown
@@ -144,13 +144,13 @@ function makeProject() {
   console.log('ok 7 - activeId falls back to the first preset')
 }
 
-// 8) legacy globals are gone: the preset module carries no .mcdev.json helpers
+// 8) legacy globals are gone: the preset module carries no project-config helpers
 {
   const source = fs.readFileSync(new URL('../lib/native/presets.js', import.meta.url), 'utf8')
-  assert.ok(!source.includes('readConfigWithDefaults'), 'presets must not read .mcdev.json')
+  assert.ok(!source.includes('readConfigWithDefaults'), 'presets must not read a project config')
   assert.ok(!source.includes('presetFromLegacyProfile'), 'legacy migration was removed')
   assert.ok(!fs.existsSync(new URL('../lib/native/launchProfile.js', import.meta.url)), 'launch-profile.js was removed')
-  console.log('ok 8 - legacy launch-profile / .mcdev.json compatibility removed')
+  console.log('ok 8 - legacy launch-profile compatibility removed')
 }
 
 console.log('8 preset tests passed')

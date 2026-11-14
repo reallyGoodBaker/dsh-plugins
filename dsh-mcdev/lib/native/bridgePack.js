@@ -699,7 +699,7 @@ export function scanPackManifests(dir) {
 }
 
 /**
- * 从工程 .mcdev.json 的 included_mod_dirs + 常见约定（<project>/bp、<project>/rp）解析工程包 uuid。
+ * 从工程约定（<project>/bp、<project>/rp）解析工程包 uuid。
  * 解析失败只记 warning，不抛错（清单保留原样）。
  * @returns {{behavior:{uuid:string,version:number[],name:string,source:string}[], resource:any[], warnings:string[]}}
  */

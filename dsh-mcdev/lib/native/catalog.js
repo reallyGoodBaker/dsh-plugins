@@ -5,7 +5,7 @@
 // - 导入包：<project>/.mcdev/packs/{behavior,resource}/<name>
 // - 皮肤：<project>/.mcdev/skins/*.png（通过文件夹导入）
 //
-// 不再读取 .mcdev.json：启动预设是完全自包含的。
+// 启动预设是完全自包含的。
 // 只依赖 Node 内置模块。
 
 import fs from 'node:fs';

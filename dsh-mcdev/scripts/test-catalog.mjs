@@ -115,14 +115,14 @@ function writePack(dir, uuid, name) {
   console.log('ok 5 - resolveSelectedPacks distinguishes default, explicit and missing')
 }
 
-// 6) imports stay inside the project (no .mcdev.json involved)
+// 6) imports stay inside the project
 {
   const project = makeProject()
   const source = writePack(path.join(makeProject(), 'PickedRP'), 'eeeeeeee-3333-3333-3333-333333333333', 'Picked RP')
   const result = importPack(project, 'resource', source)
   assert.ok(result.dir.startsWith(path.join(project, '.mcdev')))
-  assert.ok(!fs.existsSync(path.join(project, '.mcdev.json')))
-  console.log('ok 6 - imported packs live under <project>/.mcdev and need no .mcdev.json')
+  assert.ok(!fs.existsSync(path.join(project, 'config.json')))
+  console.log('ok 6 - imported packs live under <project>/.mcdev')
 }
 
 console.log('6 catalog tests passed')

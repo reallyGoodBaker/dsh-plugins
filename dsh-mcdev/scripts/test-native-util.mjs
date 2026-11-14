@@ -1,24 +1,19 @@
 #!/usr/bin/env node
 /**
  * Unit tests for the native provider's shared utilities: the log ring buffer
- * (cursor semantics the panel and the agent both rely on), `.mcdev.json`
- * merging/backup and game-version discovery.
+ * (cursor semantics the panel and the agent both rely on), game-version
+ * discovery and world-usage process detection.
  *
  *   node scripts/test-native-util.mjs
  */
 import assert from 'node:assert/strict'
-import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import {
-  CONFIG_DEFAULTS,
   LogBuffer,
-  configPathOf,
   findGameVersions,
   findProcessUsingWorld,
   isPlainObject,
-  readConfigWithDefaults,
-  writeMergedConfig,
 } from '../lib/native/util.js'
 
 let passed = 0
@@ -71,40 +66,6 @@ test('LogBuffer onLine notifies and unsubscribes', () => {
   off()
   buffer.pushLine('b')
   assert.deepEqual(seen, ['a'])
-})
-
-test('.mcdev.json defaults apply when the file is missing (and nothing is written)', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcdev-cfg-'))
-  try {
-    const config = readConfigWithDefaults(dir)
-    assert.equal(config.world_folder_name, CONFIG_DEFAULTS.world_folder_name)
-    assert.equal(fs.existsSync(configPathOf(dir)), false, 'read must not create the file')
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true })
-  }
-})
-
-test('.mcdev.json merge keeps unknown keys and backs up before writing', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcdev-cfg-'))
-  try {
-    const file = configPathOf(dir)
-    fs.writeFileSync(file, JSON.stringify({ world_folder_name: 'CUSTOM', custom_key: 7, skin_info: { slim: true } }), 'utf8')
-    const merged = readConfigWithDefaults(dir)
-    assert.equal(merged.world_folder_name, 'CUSTOM')
-    assert.equal(merged.custom_key, 7)
-    assert.equal(merged.skin_info.slim, true)
-    assert.equal(merged.skin_info.skin, '', 'defaults fill missing nested keys')
-    const { config, backupPath } = writeMergedConfig(dir, { world_folder_name: 'NEXT', skin_info: { skin: 'x.png' } })
-    assert.equal(config.world_folder_name, 'NEXT')
-    assert.equal(config.skin_info.skin, 'x.png')
-    assert.equal(config.skin_info.slim, true, 'deep merge preserves the other nested key')
-    assert.equal(config.custom_key, 7, 'unknown keys survive a write')
-    assert.ok(fs.existsSync(backupPath), 'backup file exists')
-    const onDisk = JSON.parse(fs.readFileSync(file, 'utf8'))
-    assert.equal(onDisk.world_folder_name, 'NEXT')
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true })
-  }
 })
 
 test('isPlainObject rejects arrays and null', () => {

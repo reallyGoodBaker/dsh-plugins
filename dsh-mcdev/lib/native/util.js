@@ -1,8 +1,8 @@
 /**
  * Shared utilities for the self-implemented (native) provider.
  *
- * The runtime provider owns them: `.mcdev.json` handling, a bounded log ring
- * buffer with cursors, game-version discovery and process helpers.
+ * The runtime provider owns them: a bounded log ring buffer with cursors,
+ * game-version discovery and process helpers.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -13,113 +13,9 @@ export function gameBaseDir() {
   return process.env.MCDEV_GAME_DIR || 'C:\\MCStudioDownload\\game\\MinecraftPE_Netease'
 }
 
-/** Default `.mcdev.json` values used when the project file omits a key. */
-export const CONFIG_DEFAULTS = {
-  game_executable_path: '',
-  included_mod_dirs: [{ path: './', hot_reload: false }],
-  world_name: 'MC_DEV_WORLD',
-  world_folder_name: 'MC_DEV_WORLD',
-  world_seed: null,
-  reset_world: false,
-  auto_join_game: true,
-  include_debug_mod: true,
-  log_protocol: 0,
-  game_mode: 1,
-  world_type: 1,
-  enable_cheats: true,
-  keep_inventory: true,
-  do_weather_cycle: true,
-  do_daylight_cycle: true,
-  experiment_options: {
-    data_driven_biomes: false,
-    data_driven_items: false,
-    experimental_molang_features: false,
-  },
-  debug_options: {
-    reload_addon_key: '',
-    reload_key: '',
-    reload_key_global: false,
-    reload_shaders_key: '46',
-    reload_world_key: '45',
-  },
-  mcp_server_config: { enabled: false, server_ip: 'localhost', server_port: 19133 },
-  skin_info: { skin: '', slim: false },
-  window_style: {
-    always_on_top: false,
-    fixed_position: null,
-    fixed_size: null,
-    hide_title_bar: false,
-    hide_taskbar_icon: false,
-    lock_corner: null,
-    title_bar_color: null,
-  },
-  mcdev_tools: { game_debugger: { enabled: false } },
-}
-
-/** Plain-object test used by config patching. */
+/** Plain-object test. */
 export function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
-
-/** Path of the project's `.mcdev.json`. */
-export function configPathOf(projectDir) {
-  return path.join(path.resolve(projectDir), '.mcdev.json')
-}
-
-/** Deep merge two plain objects; arrays and scalars from `over` win. */
-function mergeDeep(base, over) {
-  if (!isPlainObject(base) || !isPlainObject(over)) return over === undefined ? base : over
-  const out = { ...base }
-  for (const [key, value] of Object.entries(over)) {
-    out[key] = isPlainObject(value) && isPlainObject(base[key]) ? mergeDeep(base[key], value) : value
-  }
-  return out
-}
-
-/** Read and parse one JSON file, tolerating a UTF-8 BOM. */
-function readJsonFile(file) {
-  const text = fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')
-  return JSON.parse(text)
-}
-
-/**
- * Read the project config merged over `CONFIG_DEFAULTS`.
- *
- * A missing file yields the defaults (nothing is created on disk).
- * @param {string} projectDir - project directory.
- * @returns {object} effective config.
- */
-export function readConfigWithDefaults(projectDir) {
-  const file = configPathOf(projectDir)
-  if (!fs.existsSync(file)) return mergeDeep(CONFIG_DEFAULTS, {})
-  let parsed
-  try {
-    parsed = readJsonFile(file)
-  } catch (error) {
-    throw new Error(`解析 .mcdev.json 失败（${file}）：${error instanceof Error ? error.message : String(error)}`)
-  }
-  if (!isPlainObject(parsed)) throw new Error(`.mcdev.json 根节点必须是 JSON 对象（${file}）`)
-  return mergeDeep(CONFIG_DEFAULTS, parsed)
-}
-
-/**
- * Merge `patch` into the project config and write it back, keeping a `.bak`.
- * @param {string} projectDir - project directory.
- * @param {object} patch - partial config.
- * @returns {{ config: object, backupPath: string }}
- */
-export function writeMergedConfig(projectDir, patch) {
-  if (!isPlainObject(patch)) throw new Error('updateConfig(patch) 需要一个普通对象')
-  const file = configPathOf(projectDir)
-  const current = readConfigWithDefaults(projectDir)
-  const next = mergeDeep(current, patch)
-  let backupPath = ''
-  if (fs.existsSync(file)) {
-    backupPath = `${file}.bak`
-    fs.copyFileSync(file, backupPath)
-  }
-  fs.writeFileSync(file, `${JSON.stringify(next, null, 4)}\n`, 'utf8')
-  return { config: next, backupPath }
 }
 
 /** Compare two dotted numeric versions (newer first when used with sort). */
